@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}Order Details - Restaurant System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Order {{ order.order_number }}</h2>
+        <p class="text-muted mb-0">Table {{ order.table_info.tbl_no }} • {{ order.created_at|date:"M d, Y H:i" }}</p>
+    </div>
+    <a href="{% url 'orders:kitchen_dashboard' %}" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-left"></i> Back to Kitchen
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Order Items</h5>
+            </div>
+            <div class="card-body">
+                {% for item in order.order_items.all %}
+                    <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+                        <div class="d-flex align-items-center">
+                            {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% else %}
+                                <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="bi bi-image text-muted"></i>
+                                </div>
+                            {% endif %}
+                            
+                            <div>
+                                <h6 class="mb-1">{{ item.product.name }}</h6>
+                                <p class="text-muted mb-0">{{ item.product.description|truncatechars:50 }}</p>
+                                {% if item.special_notes %}
+                                    <small class="text-info"><i class="bi bi-info-circle"></i> {{ item.special_notes }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="text-end">
+                            <div class="badge bg-primary mb-1">{{ item.quantity }}x</div>
+                            <div class="text-muted">${{ item.unit_price|floatformat:2 }} each</div>
+                            <div class="fw-bold">${{ item.get_subtotal|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                <div class="d-flex justify-content-between align-items-center pt-3">
+                    <strong>Total Amount:</strong>
+                    <strong class="text-primary h5">${{ order.total_amount|floatformat:2 }}</strong>
+                </div>
+            </div>
+        </div>
+        
+        {% if order.special_instructions %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-chat-text"></i> Special Instructions</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ order.special_instructions }}</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Order Information</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Status:</strong> 
+                    <span class="badge bg-{% if order.status == 'pending' %}warning{% elif order.status == 'confirmed' %}primary{% elif order.status == 'preparing' %}info{% elif order.status == 'ready' %}success{% elif order.status == 'served' %}secondary{% else %}danger{% endif %}">
+                        {{ order.get_status_display }}
+                    </span>
+                </p>
+                <p><strong>Customer:</strong> {{ order.ordered_by.get_full_name|default:order.ordered_by.username }}</p>
+                <p><strong>Table:</strong> {{ order.table_info.tbl_no }}</p>
+                <p><strong>Order Time:</strong> {{ order.created_at|date:"M d, Y H:i" }}</p>
+                {% if order.confirmed_by %}
+                    <p><strong>Confirmed By:</strong> {{ order.confirmed_by.get_full_name|default:order.confirmed_by.username }}</p>
+                {% endif %}
+                <p><strong>Total Items:</strong> {{ order.get_total_products }}</p>
+                
+                {% if order.reason_if_cancelled %}
+                    <div class="alert alert-danger mt-3">
+                        <strong>Cancellation Reason:</strong><br>
+                        {{ order.reason_if_cancelled }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if order.status not in 'served,cancelled' %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if order.status == 'pending' %}
+                            <button class="btn btn-success" onclick="confirmOrder({{ order.id }})">
+                                <i class="bi bi-check-circle"></i> Confirm Order
+                            </button>
+                        {% elif order.status == 'confirmed' %}
+                            <button class="btn btn-info" onclick="updateStatus({{ order.id }}, 'preparing')">
+                                <i class="bi bi-hourglass-split"></i> Start Preparing
+                            </button>
+                        {% elif order.status == 'preparing' %}
+                            <button class="btn btn-success" onclick="updateStatus({{ order.id }}, 'ready')">
+                                <i class="bi bi-check2-all"></i> Mark Ready
+                            </button>
+                        {% elif order.status == 'ready' %}
+                            <button class="btn btn-secondary" onclick="updateStatus({{ order.id }}, 'served')">
+                                <i class="bi bi-check-all"></i> Mark Served
+                            </button>
+                        {% endif %}
+                        
+                        <a href="{% url 'orders:cancel_order' order.id %}" class="btn btn-outline-danger">
+                            <i class="bi bi-x-circle"></i> Cancel Order
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmOrder(orderId) {
+    if (!confirm('Confirm this order?')) return;
+    
+    fetch(`/orders/kitchen/confirm/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function updateStatus(orderId, newStatus) {
+    const statusMessages = {
+        'preparing': 'Start preparing this order?',
+        'ready': 'Mark this order as ready?',
+        'served': 'Mark this order as served?'
+    };
+    
+    if (!confirm(statusMessages[newStatus])) return;
+    
+    fetch(`/orders/kitchen/update-status/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

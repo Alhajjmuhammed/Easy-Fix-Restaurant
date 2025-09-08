@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Restaurant System{% endblock %}
+
+{% block content %}
+<div class="hero-section text-center py-5 mb-5" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px;">
+    <div class="container">
+        <h1 class="display-4 fw-bold mb-3">Welcome to Our Restaurant</h1>
+        <p class="lead mb-4">Experience the finest dining with our digital ordering system</p>
+        {% if not user.is_authenticated %}
+            <a href="{% url 'accounts:register' %}" class="btn btn-light btn-lg me-3">
+                <i class="bi bi-person-plus"></i> Join Us
+            </a>
+            <a href="{% url 'accounts:login' %}" class="btn btn-outline-light btn-lg">
+                <i class="bi bi-box-arrow-in-right"></i> Sign In
+            </a>
+        {% else %}
+            <a href="{% url 'restaurant:menu' %}" class="btn btn-light btn-lg">
+                <i class="bi bi-menu-button-wide"></i> View Menu
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body">
+                <i class="bi bi-menu-button-wide display-4 text-primary mb-3"></i>
+                <h5 class="card-title">Digital Menu</h5>
+                <p class="card-text">Browse our extensive menu with detailed descriptions and prices.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body">
+                <i class="bi bi-cart-check display-4 text-success mb-3"></i>
+                <h5 class="card-title">Easy Ordering</h5>
+                <p class="card-text">Place orders quickly and efficiently with our streamlined system.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body">
+                <i class="bi bi-clock-history display-4 text-warning mb-3"></i>
+                <h5 class="card-title">Real-time Updates</h5>
+                <p class="card-text">Track your order status and get real-time updates from our kitchen.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Owner Dashboard - Restaurant System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-speedometer2"></i> Owner Dashboard</h2>
+    <div class="btn-group" role="group">
+        <a href="{% url 'restaurant:add_product' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Add Product
+        </a>
+        <a href="{% url 'restaurant:add_staff' %}" class="btn btn-success">
+            <i class="bi bi-person-plus"></i> Add Staff
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ total_products }}</h4>
+                        <p class="mb-0">Total Products</p>
+                    </div>
+                    <i class="bi bi-box-seam display-6"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ total_orders }}</h4>
+                        <p class="mb-0">Total Orders</p>
+                    </div>
+                    <i class="bi bi-receipt display-6"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ pending_orders }}</h4>
+                        <p class="mb-0">Pending Orders</p>
+                    </div>
+                    <i class="bi bi-clock-history display-6"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ total_staff }}</h4>
+                        <p class="mb-0">Staff Members</p>
+                    </div>
+                    <i class="bi bi-people display-6"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'restaurant:manage_products' %}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-box-seam"></i><br>Products
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'restaurant:manage_categories' %}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-tags"></i><br>Categories
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'restaurant:manage_staff' %}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-people"></i><br>Staff
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'restaurant:view_orders' %}" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-receipt"></i><br>Orders
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'restaurant:manage_tables' %}" class="btn btn-outline-info w-100">
+                            <i class="bi bi-table"></i><br>Tables
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'admin:index' %}" class="btn btn-outline-dark w-100">
+                            <i class="bi bi-gear"></i><br>Admin
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Orders and Popular Products -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Orders</h5>
+                <a href="{% url 'restaurant:view_orders' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_orders %}
+                    <div class="list-group list-group-flush">
+                        {% for order in recent_orders %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ order.order_number }}</strong><br>
+                                    <small class="text-muted">Table {{ order.table_info.tbl_no }} • {{ order.created_at|date:"M d, H:i" }}</small>
+                                </div>
+                                <span class="badge bg-{% if order.status == 'pending' %}warning{% elif order.status == 'confirmed' %}primary{% elif order.status == 'ready' %}success{% else %}secondary{% endif %}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No recent orders</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-star"></i> Popular Products</h5>
+            </div>
+            <div class="card-body">
+                {% if popular_products %}
+                    <div class="list-group list-group-flush">
+                        {% for product in popular_products %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ product.name }}</strong><br>
+                                    <small class="text-muted">${{ product.price }}</small>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">{{ product.order_count }} orders</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No order data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

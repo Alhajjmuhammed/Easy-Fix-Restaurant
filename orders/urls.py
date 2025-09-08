@@ -1,0 +1,35 @@
+from django.urls import path
+from . import views
+
+app_name = 'orders'
+
+urlpatterns = [
+    path('', views.order_list, name='order_list'),
+    path('create/', views.create_order, name='create_order'),
+    
+    # Customer ordering flow
+    path('table/', views.select_table, name='select_table'),
+    path('menu/', views.browse_menu, name='browse_menu'),
+    path('cart/', views.view_cart, name='view_cart'),
+    path('place-order/', views.place_order, name='place_order'),
+    path('confirmation/<int:order_id>/', views.order_confirmation, name='order_confirmation'),
+    
+    # Cart management (AJAX)
+    path('cart/add/', views.add_to_cart, name='add_to_cart'),
+    path('cart/remove/', views.remove_from_cart, name='remove_from_cart'),
+    path('cart/update/', views.update_cart_quantity, name='update_cart_quantity'),
+    
+    # Customer order management
+    path('my-orders/', views.my_orders, name='my_orders'),
+    path('order/<int:order_id>/', views.order_detail, name='order_detail'),
+    
+    # Kitchen management
+    path('kitchen/', views.kitchen_dashboard, name='kitchen_dashboard'),
+    path('kitchen/order/<int:order_id>/', views.kitchen_order_detail, name='kitchen_order_detail'),
+    path('kitchen/confirm/<int:order_id>/', views.confirm_order, name='confirm_order'),
+    path('kitchen/update-status/<int:order_id>/', views.update_order_status, name='update_order_status'),
+    path('kitchen/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
+    
+    # Customer care management
+    path('customer-care/', views.customer_care_dashboard, name='customer_care_dashboard'),
+]

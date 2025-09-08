@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+
+{% block title %}Kitchen Dashboard - Restaurant System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .order-card {
+        transition: transform 0.2s;
+    }
+    
+    .order-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .status-badge {
+        font-size: 0.875rem;
+    }
+    
+    .order-time {
+        font-size: 0.75rem;
+    }
+    
+    .filter-tabs .nav-link {
+        border-radius: 20px;
+        margin-right: 5px;
+    }
+    
+    .order-items {
+        max-height: 150px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-fire"></i> Kitchen Dashboard</h2>
+        <p class="text-muted mb-0">Manage incoming orders and update status</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Status Filter Tabs -->
+<div class="filter-tabs mb-4">
+    <ul class="nav nav-pills">
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" 
+               href="?status=pending">
+                <i class="bi bi-clock"></i> Pending 
+                <span class="badge bg-warning ms-1">{{ pending_count }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'confirmed' %}active{% endif %}" 
+               href="?status=confirmed">
+                <i class="bi bi-check-circle"></i> Confirmed 
+                <span class="badge bg-primary ms-1">{{ confirmed_count }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'preparing' %}active{% endif %}" 
+               href="?status=preparing">
+                <i class="bi bi-hourglass-split"></i> Preparing 
+                <span class="badge bg-info ms-1">{{ preparing_count }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'ready' %}active{% endif %}" 
+               href="?status=ready">
+                <i class="bi bi-check2-all"></i> Ready 
+                <span class="badge bg-success ms-1">{{ ready_count }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'active' %}active{% endif %}" 
+               href="?status=active">
+                <i class="bi bi-list-ul"></i> Active Orders
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
+               href="?status=all">
+                <i class="bi bi-grid"></i> All Orders
+            </a>
+        </li>
+    </ul>
+</div>
+
+<!-- Orders Grid -->
+<div class="row">
+    {% for order in orders %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card order-card shadow-sm h-100" id="order-{{ order.id }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ order.order_number }}</strong><br>
+                        <small class="text-muted">Table {{ order.table_info.tbl_no }}</small>
+                    </div>
+                    <span class="badge status-badge bg-{% if order.status == 'pending' %}warning{% elif order.status == 'confirmed' %}primary{% elif order.status == 'preparing' %}info{% elif order.status == 'ready' %}success{% elif order.status == 'served' %}secondary{% else %}danger{% endif %}">
+                        {{ order.get_status_display }}
+                    </span>
+                </div>
+                
+                <div class="card-body">
+                    <div class="order-items mb-3">
+                        {% for item in order.order_items.all %}
+                            <div class="d-flex justify-content-between align-items-center py-1">
+                                <span class="small">{{ item.quantity }}x {{ item.product.name }}</span>
+                                <span class="small text-muted">${{ item.get_subtotal|floatformat:2 }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if order.special_instructions %}
+                        <div class="alert alert-info py-2 mb-3">
+                            <small><i class="bi bi-info-circle"></i> {{ order.special_instructions }}</small>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <strong class="text-primary">Total: ${{ order.total_amount|floatformat:2 }}</strong>
+                        <small class="text-muted order-time">
+                            <i class="bi bi-clock"></i> {{ order.created_at|timesince }} ago
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex gap-1 flex-wrap">
+                        {% if order.status == 'pending' %}
+                            <button class="btn btn-success btn-sm flex-fill" onclick="confirmOrder({{ order.id }})">
+                                <i class="bi bi-check-circle"></i> Confirm
+                            </button>
+                        {% elif order.status == 'confirmed' %}
+                            <button class="btn btn-info btn-sm flex-fill" onclick="updateStatus({{ order.id }}, 'preparing')">
+                                <i class="bi bi-hourglass-split"></i> Start Preparing
+                            </button>
+                        {% elif order.status == 'preparing' %}
+                            <button class="btn btn-success btn-sm flex-fill" onclick="updateStatus({{ order.id }}, 'ready')">
+                                <i class="bi bi-check2-all"></i> Mark Ready
+                            </button>
+                        {% elif order.status == 'ready' %}
+                            <button class="btn btn-secondary btn-sm flex-fill" onclick="updateStatus({{ order.id }}, 'served')">
+                                <i class="bi bi-check-all"></i> Mark Served
+                            </button>
+                        {% endif %}
+                        
+                        {% if order.status not in 'served,cancelled' %}
+                            <a href="{% url 'orders:cancel_order' order.id %}" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        {% endif %}
+                        
+                        <a href="{% url 'orders:kitchen_order_detail' order.id %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <h4 class="mt-3">No Orders Found</h4>
+                <p class="text-muted">
+                    {% if status_filter == 'pending' %}
+                        No pending orders at the moment.
+                    {% elif status_filter == 'confirmed' %}
+                        No confirmed orders to prepare.
+                    {% elif status_filter == 'preparing' %}
+                        No orders currently being prepared.
+                    {% elif status_filter == 'ready' %}
+                        No orders ready for serving.
+                    {% else %}
+                        No orders match the current filter.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmOrder(orderId) {
+    if (!confirm('Confirm this order?')) return;
+    
+    fetch(`/orders/kitchen/confirm/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Update the order card
+            updateOrderCard(orderId, data.new_status, 'primary');
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('An error occurred. Please try again.', 'error');
+    });
+}
+
+function updateStatus(orderId, newStatus) {
+    const statusMessages = {
+        'preparing': 'Start preparing this order?',
+        'ready': 'Mark this order as ready?',
+        'served': 'Mark this order as served?'
+    };
+    
+    if (!confirm(statusMessages[newStatus])) return;
+    
+    fetch(`/orders/kitchen/update-status/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Update the order card
+            const badgeClass = {
+                'confirmed': 'primary',
+                'preparing': 'info',
+                'ready': 'success',
+                'served': 'secondary'
+            }[newStatus];
+            updateOrderCard(orderId, data.new_status, badgeClass);
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('An error occurred. Please try again.', 'error');
+    });
+}
+
+function updateOrderCard(orderId, newStatus, badgeClass) {
+    const orderCard = document.getElementById(`order-${orderId}`);
+    const statusBadge = orderCard.querySelector('.status-badge');
+    const cardFooter = orderCard.querySelector('.card-footer');
+    
+    // Update status badge
+    statusBadge.className = `badge status-badge bg-${badgeClass}`;
+    statusBadge.textContent = newStatus;
+    
+    // Update action buttons based on new status
+    let buttonsHtml = '';
+    if (newStatus === 'Confirmed') {
+        buttonsHtml = `
+            <button class="btn btn-info btn-sm flex-fill" onclick="updateStatus(${orderId}, 'preparing')">
+                <i class="bi bi-hourglass-split"></i> Start Preparing
+            </button>
+        `;
+    } else if (newStatus === 'Preparing') {
+        buttonsHtml = `
+            <button class="btn btn-success btn-sm flex-fill" onclick="updateStatus(${orderId}, 'ready')">
+                <i class="bi bi-check2-all"></i> Mark Ready
+            </button>
+        `;
+    } else if (newStatus === 'Ready') {
+        buttonsHtml = `
+            <button class="btn btn-secondary btn-sm flex-fill" onclick="updateStatus(${orderId}, 'served')">
+                <i class="bi bi-check-all"></i> Mark Served
+            </button>
+        `;
+    }
+    
+    if (newStatus !== 'Served') {
+        buttonsHtml += `
+            <a href="/orders/kitchen/cancel/${orderId}/" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-x-circle"></i>
+            </a>
+        `;
+    }
+    
+    buttonsHtml += `
+        <a href="/orders/kitchen/order/${orderId}/" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-eye"></i>
+        </a>
+    `;
+    
+    cardFooter.innerHTML = `<div class="d-flex gap-1 flex-wrap">${buttonsHtml}</div>`;
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}

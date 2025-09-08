@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Menu - Restaurant System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .product-card {
+        transition: transform 0.2s;
+        height: 100%;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .product-image {
+        height: 200px;
+        object-fit: cover;
+    }
+    
+    .cart-badge {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+    
+    .category-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: white;
+        border-bottom: 1px solid #dee2e6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Cart Badge -->
+<div class="cart-badge">
+    <a href="{% url 'orders:view_cart' %}" class="btn btn-primary position-relative">
+        <i class="bi bi-cart3"></i> Cart
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-count">
+            {{ cart_count }}
+        </span>
+    </a>
+</div>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-menu-button-wide"></i> Menu</h2>
+        <p class="text-muted mb-0">Table {{ table_number }} • Select items to add to your cart</p>
+    </div>
+    <div>
+        <a href="{% url 'orders:select_table' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Change Table
+        </a>
+    </div>
+</div>
+
+<!-- Category Navigation -->
+<div class="category-nav py-3 mb-4">
+    <div class="d-flex flex-wrap gap-2">
+        {% for category in categories %}
+            <a href="#category-{{ category.id }}" class="btn btn-outline-primary btn-sm">
+                {{ category.name }}
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Menu Categories -->
+{% for category in categories %}
+    <div id="category-{{ category.id }}" class="mb-5">
+        <h3 class="border-bottom pb-2 mb-4">
+            <i class="bi bi-tag"></i> {{ category.name }}
+        </h3>
+        
+        {% for subcategory in category.subcategories.all %}
+            {% if subcategory.products.all %}
+                <h5 class="text-muted mb-3">{{ subcategory.name }}</h5>
+                
+                <div class="row">
+                    {% for product in subcategory.products.all %}
+                        {% if product.is_available %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card product-card shadow-sm">
+                                    {% if product.image %}
+                                        <img src="{{ product.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                    {% else %}
+                                        <div class="card-img-top product-image bg-light d-flex align-items-center justify-content-center">
+                                            <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <div class="card-body d-flex flex-column">
+                                        <h6 class="card-title">{{ product.name }}</h6>
+                                        <p class="card-text text-muted small flex-grow-1">{{ product.description|truncatechars:100 }}</p>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="h5 text-primary mb-0">${{ product.price }}</span>
+                                            <small class="text-muted">
+                                                <i class="bi bi-clock"></i> {{ product.preparation_time }} min
+                                            </small>
+                                        </div>
+                                        
+                                        {% if product.available_in_stock > 0 %}
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="input-group input-group-sm" style="width: 100px;">
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="changeQuantity({{ product.id }}, -1)">-</button>
+                                                    <input type="number" class="form-control text-center" id="qty-{{ product.id }}" value="1" min="1" max="{{ product.available_in_stock }}">
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="changeQuantity({{ product.id }}, 1)">+</button>
+                                                </div>
+                                                <button class="btn btn-primary btn-sm flex-grow-1" onclick="addToCart({{ product.id }})">
+                                                    <i class="bi bi-cart-plus"></i> Add
+                                                </button>
+                                            </div>
+                                            <small class="text-success mt-1">
+                                                <i class="bi bi-check-circle"></i> {{ product.available_in_stock }} in stock
+                                            </small>
+                                        {% else %}
+                                            <button class="btn btn-secondary btn-sm" disabled>
+                                                <i class="bi bi-x-circle"></i> Out of Stock
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% empty %}
+    <div class="text-center py-5">
+        <i class="bi bi-menu-button-wide display-1 text-muted"></i>
+        <h4 class="mt-3">No Menu Items Available</h4>
+        <p class="text-muted">Please check back later or contact our staff.</p>
+    </div>
+{% endfor %}
+
+<!-- Fixed Bottom Cart Summary -->
+{% if cart_count > 0 %}
+<div class="fixed-bottom bg-white border-top p-3 shadow">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>{{ cart_count }} items • ${{ cart_total|floatformat:2 }}</strong>
+            </div>
+            <a href="{% url 'orders:view_cart' %}" class="btn btn-primary">
+                <i class="bi bi-cart-check"></i> View Cart
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeQuantity(productId, change) {
+    const qtyInput = document.getElementById(`qty-${productId}`);
+    let newQty = parseInt(qtyInput.value) + change;
+    const maxQty = parseInt(qtyInput.max);
+    
+    if (newQty < 1) newQty = 1;
+    if (newQty > maxQty) newQty = maxQty;
+    
+    qtyInput.value = newQty;
+}
+
+function addToCart(productId) {
+    const quantity = parseInt(document.getElementById(`qty-${productId}`).value);
+    
+    fetch('{% url "orders:add_to_cart" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            product_id: productId,
+            quantity: quantity
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update cart count
+            document.getElementById('cart-count').textContent = data.cart_count;
+            
+            // Show success message
+            showToast(data.message, 'success');
+            
+            // Reset quantity to 1
+            document.getElementById(`qty-${productId}`).value = 1;
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('An error occurred. Please try again.', 'error');
+    });
+}
+
+function showToast(message, type) {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+</script>
+{% endblock %}
