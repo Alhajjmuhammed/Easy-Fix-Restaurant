@@ -1,0 +1,1402 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Manage Products - Admin Panel{% endblock %}
+
+{% block page_title %}Product Management{% endblock %}
+{% block page_description %}Manage your restaurant's menu items{% endblock %}
+
+{% block extra_head %}
+<!-- CSRF disabled for development -->
+<!-- <meta name="csrf-token" content="{{ csrf_token }}"> -->
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Compact Table Styling for Menu Display */
+    .modern-table .table thead th {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background-color: #f8f9fa;
+    }
+    
+    .modern-table .table tbody td {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        vertical-align: middle;
+    }
+    
+    .modern-table .table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    .product-image {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 6px;
+    }
+    
+    .modern-table {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .btn-modern {
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-weight: 500;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-modern:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    /* Compact button styling */
+    .btn-group .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+        margin-right: 0;
+    }
+
+    /* Mobile responsive adjustments */
+    @media (max-width: 768px) {
+        .btn-group {
+            flex-direction: column;
+        }
+        .btn-group .btn {
+            margin-bottom: 0.1rem;
+            border-radius: 0.25rem !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Action Bar -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-modern" data-bs-toggle="modal" data-bs-target="#addProductModal">
+            <i class="fas fa-plus me-2"></i>Add New Product
+        </button>
+        
+        <!-- Bulk Actions (initially hidden) -->
+        <div id="bulkActions" class="d-none">
+            <button class="btn btn-danger btn-modern" id="bulkDeleteBtn">
+                <i class="fas fa-trash me-2"></i>Delete Selected (<span id="selectedCount">0</span>)
+            </button>
+        </div>
+        
+        <!-- Import/Export Dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-success btn-modern dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-upload me-2"></i>Import Products
+            </button>
+            <ul class="dropdown-menu">
+                <li><h6 class="dropdown-header">Import from File</h6></li>
+                <li>
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#importCsvModal">
+                        <i class="fas fa-file-csv me-2"></i>Import from CSV
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                        <i class="fas fa-file-excel me-2"></i>Import from Excel
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Download Templates</h6></li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'admin_panel:download_template_csv' %}">
+                        <i class="fas fa-download me-2"></i>CSV Template
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'admin_panel:download_template_excel' %}">
+                        <i class="fas fa-download me-2"></i>Excel Template
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="input-group" style="width: 300px;">
+        <input type="text" class="form-control" placeholder="Search products..." id="searchInput">
+        <button class="btn btn-outline-secondary" type="button">
+            <i class="fas fa-search"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Products by Category - Tab Style -->
+<div class="card modern-table">
+    <div class="card-header bg-white border-0 py-3">
+        <h5 class="mb-0 fw-bold">
+            <i class="fas fa-utensils me-2 text-primary"></i>
+            Products by Category
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <!-- Category Tabs -->
+        <nav>
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                {% for category_data in main_categories %}
+                    <button class="nav-link {% if forloop.first %}active{% endif %}" id="nav-{{ category_data.category.id }}-tab" 
+                            data-bs-toggle="tab" data-bs-target="#nav-{{ category_data.category.id }}" type="button" 
+                            role="tab" aria-controls="nav-{{ category_data.category.id }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                        {{ category_data.category.name }} ({{ category_data.total_count }})
+                    </button>
+                {% endfor %}
+            </div>
+        </nav>
+        
+        <!-- Tab Content -->
+        <div class="tab-content" id="nav-tabContent">
+            {% for category_data in main_categories %}
+                <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="nav-{{ category_data.category.id }}" 
+                     role="tabpanel" aria-labelledby="nav-{{ category_data.category.id }}-tab">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" id="selectAll-{{ category_data.category.id }}" class="form-check-input select-all-checkbox" data-category="{{ category_data.category.id }}">
+                                    </th>
+                                    <th style="width: 40px; color: black;">SN</th>
+                                    <th style="width: 60px; color: black;">Image</th>
+                                    <th style="color: black;">Product Info</th>
+                                    <th style="width: 120px; color: black;">Sub Category</th>
+                                    <th style="width: 80px; color: black;">Price</th>
+                                    <th style="width: 80px; color: black;">Stock</th>
+                                    <th style="width: 80px; color: black;">Status</th>
+                                    <th style="width: 120px; color: black;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in category_data.products %}
+                                <tr id="product-row-{{ product.id }}" data-product-id="{{ product.id }}">
+                                    <td>
+                                        <input type="checkbox" class="form-check-input product-checkbox" 
+                                               value="{{ product.id }}" data-product-name="{{ product.name }}">
+                                    </td>
+                                    <td>{{ category_data.products.start_index|add:forloop.counter0 }}</td>
+                                    <td>
+                                        {% if product.image %}
+                                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">
+                                        {% else %}
+                                            <div style="width: 50px; height: 50px;" class="bg-light d-flex align-items-center justify-content-center rounded">
+                                                <i class="fas fa-image text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <h6 class="mb-1 fw-bold" style="font-size: 0.9rem;">{{ product.name }}</h6>
+                                            <p class="text-muted mb-0 small" style="font-size: 0.75rem;">{{ product.description|truncatechars:50 }}</p>
+                                            <small class="text-info" style="font-size: 0.7rem;">
+                                                <i class="fas fa-clock me-1"></i>{{ product.preparation_time }} min
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted" style="font-size: 0.75rem;">{{ product.sub_category.name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-success" style="font-size: 0.85rem;">${{ product.price|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        {% if product.available_in_stock > 20 %}
+                                            <span class="badge bg-success" style="font-size: 0.7rem;">{{ product.available_in_stock }}</span>
+                                        {% elif product.available_in_stock > 5 %}
+                                            <span class="badge bg-warning" style="font-size: 0.7rem;">{{ product.available_in_stock }}</span>
+                                        {% elif product.available_in_stock > 0 %}
+                                            <span class="badge bg-danger" style="font-size: 0.7rem;">{{ product.available_in_stock }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" style="font-size: 0.7rem;">Out</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product.is_available %}
+                                            <span class="badge bg-success" style="font-size: 0.65rem;">Available</span>
+                                        {% else %}
+                                            <span class="badge bg-danger" style="font-size: 0.65rem;">Unavailable</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="product-actions">
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary view-product-btn" 
+                                                    data-product-id="{{ product.id }}"
+                                                    data-bs-toggle="tooltip" title="View Details"
+                                                    style="padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success edit-product-btn" 
+                                                    data-product-id="{{ product.id }}"
+                                                    data-bs-toggle="tooltip" title="Edit Product"
+                                                    style="padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-warning toggle-availability-btn" 
+                                                    data-product-id="{{ product.id }}" 
+                                                    data-available="{{ product.is_available|yesno:'false,true' }}"
+                                                    data-bs-toggle="tooltip" title="Toggle Availability"
+                                                    style="padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                                {% if product.is_available %}
+                                                    <i class="fas fa-ban"></i>
+                                                {% else %}
+                                                    <i class="fas fa-check"></i>
+                                                {% endif %}
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger delete-product-btn" 
+                                                    data-product-id="{{ product.id }}" 
+                                                    data-product-name="{{ product.name }}"
+                                                    data-bs-toggle="tooltip" title="Delete Product"
+                                                    style="padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination for this category -->
+                    {% if category_data.products.has_other_pages %}
+                    <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
+                        <div class="text-muted">
+                            Showing {{ category_data.products.start_index }} to {{ category_data.products.end_index }} of {{ category_data.products.paginator.count }} products
+                        </div>
+                        <nav aria-label="{{ category_data.category.name }} pagination">
+                            <ul class="pagination mb-0">
+                                {% if category_data.products.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{{ category_data.page_param }}=1">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{{ category_data.page_param }}={{ category_data.products.previous_page_number }}">
+                                            <i class="fas fa-angle-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                
+                                {% for num in category_data.products.paginator.page_range %}
+                                    {% if category_data.products.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > category_data.products.number|add:'-3' and num < category_data.products.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?{{ category_data.page_param }}={{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if category_data.products.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{{ category_data.page_param }}={{ category_data.products.next_page_number }}">
+                                            <i class="fas fa-angle-right"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{{ category_data.page_param }}={{ category_data.products.paginator.num_pages }}">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if not main_categories %}
+    <div class="text-center py-5">
+        <i class="fas fa-utensils text-muted" style="font-size: 4rem;"></i>
+        <h4 class="mt-3 text-muted">No Categories Found</h4>
+        <p class="text-muted">Start by adding categories and products to your menu.</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+            <i class="fas fa-plus me-2"></i>Add Your First Product
+        </button>
+    </div>
+{% endif %}
+
+<!-- Add Product Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle me-2"></i>Add New Product
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addProductForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-4">
+                        <!-- Basic Information -->
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 fw-bold">Product Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-12">
+                                            <label for="productName" class="form-label">Product Name *</label>
+                                            <input type="text" class="form-control" id="productName" name="name" required>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <label for="productDescription" class="form-label">Description *</label>
+                                            <textarea class="form-control" id="productDescription" name="description" rows="3" required></textarea>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="productMainCategory" class="form-label">Main Category *</label>
+                                            <select class="form-select" id="productMainCategory" name="main_category" required>
+                                                <option value="">Select Main Category</option>
+                                                {% for category in all_main_categories %}
+                                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="productSubCategory" class="form-label">Sub Category *</label>
+                                            <select class="form-select" id="productSubCategory" name="sub_category" required>
+                                                <option value="">Select Main Category First</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="productPrice" class="form-label">Price ($) *</label>
+                                            <input type="number" step="0.01" min="0.01" class="form-control" id="productPrice" name="price" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="productStock" class="form-label">Stock Quantity *</label>
+                                            <input type="number" min="0" class="form-control" id="productStock" name="available_in_stock" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="productPrepTime" class="form-label">Prep Time (min)</label>
+                                            <input type="number" min="1" class="form-control" id="productPrepTime" name="preparation_time" value="15">
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="productAvailable" name="is_available" checked>
+                                                <label class="form-check-label" for="productAvailable">
+                                                    Product is available for ordering
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Image Upload -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 fw-bold">Product Image</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="file-upload-area" id="fileUploadArea">
+                                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                        <h6>Drop image here or click to browse</h6>
+                                        <p class="text-muted small mb-0">Supports: JPG, PNG, GIF (Max: 5MB)</p>
+                                        <input type="file" class="d-none" id="productImage" name="image" accept="image/*">
+                                    </div>
+                                    <div id="imagePreview" class="mt-3 d-none">
+                                        <img id="previewImg" src="" alt="Preview" class="img-fluid rounded">
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2 w-100" onclick="removeImage()">
+                                            <i class="fas fa-trash me-1"></i>Remove Image
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Add Product
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Edit Product
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="editModalBody">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Product Modal -->
+<div class="modal fade" id="viewProductModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-2"></i>Product Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewModalBody">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Prevent multiple submissions and handle events properly
+let isProcessing = false;
+
+// CSRF Token for AJAX requests
+function getCSRFToken() {
+    const token = document.querySelector('[name=csrfmiddlewaretoken]');
+    return token ? token.value : '{{ csrf_token }}';
+}
+
+// Show alert function with proper cleanup
+function showAlert(message, type = 'success') {
+    // Remove any existing alerts
+    const existingAlerts = document.querySelectorAll('.alert-custom');
+    existingAlerts.forEach(alert => alert.remove());
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed alert-custom`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1055; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Prevent double execution
+function executeOnce(fn, context = null) {
+    if (isProcessing) return;
+    isProcessing = true;
+    
+    const result = fn.call(context);
+    
+    // Reset processing flag after operation
+    setTimeout(() => {
+        isProcessing = false;
+    }, 1000);
+    
+    return result;
+}
+
+// Form submission with proper error handling
+function submitForm(form, url, successMessage, redirectOnSuccess = true) {
+    if (isProcessing) return Promise.resolve(false);
+    
+    const formData = new FormData(form);
+    
+    return fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message || successMessage, 'success');
+            // Close the modal properly
+            const modal = bootstrap.Modal.getInstance(form.closest('.modal'));
+            if (modal) {
+                modal.hide();
+            }
+            if (redirectOnSuccess) {
+                setTimeout(() => {
+                    // Force reload to update table and clear image cache
+                    window.location.reload(true);
+                }, 1500);
+            }
+            return true;
+        } else {
+            showAlert(data.message || 'Operation failed', 'danger');
+            return false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Network error occurred', 'danger');
+        return false;
+    });
+}
+
+// Product management functions
+function viewProduct(productId) {
+    executeOnce(() => {
+        fetch(`/admin-panel/products/${productId}/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('viewModalBody').innerHTML = data.html;
+                const modal = new bootstrap.Modal(document.getElementById('viewProductModal'));
+                modal.show();
+            } else {
+                showAlert(data.message || 'Failed to load product details', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Failed to load product details', 'danger');
+        });
+    });
+}
+
+function editProduct(productId) {
+    executeOnce(() => {
+        fetch(`/admin-panel/products/${productId}/edit/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('editModalBody').innerHTML = data.html;
+                
+                const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
+                modal.show();
+            } else {
+                showAlert(data.message || 'Failed to load product for editing', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Failed to load product for editing', 'danger');
+        });
+    });
+}
+
+function toggleAvailability(productId, isCurrentlyAvailable) {
+    executeOnce(() => {
+        const action = isCurrentlyAvailable ? 'make unavailable' : 'make available';
+        const newStatus = !isCurrentlyAvailable;
+        
+        if (confirm(`Are you sure you want to ${action} this product?`)) {
+            fetch(`/admin-panel/products/${productId}/toggle-availability/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    'is_available': newStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showAlert(data.message || 'Failed to update product availability', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Failed to update product availability', 'danger');
+            });
+        }
+    });
+}
+
+function deleteProduct(productId, productName) {
+    executeOnce(() => {
+        if (confirm(`Are you sure you want to delete "${productName}"?\n\nThis action cannot be undone.`)) {
+            fetch(`/admin-panel/products/${productId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    // Remove product row from table
+                    const productRow = document.querySelector(`[data-product-id="${productId}"]`);
+                    if (productRow) {
+                        productRow.remove();
+                    }
+                    // Update category tab counters
+                    updateCategoryTabCounters();
+                } else {
+                    showAlert(data.message || 'Failed to delete product', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Failed to delete product', 'danger');
+            });
+        }
+    });
+}
+
+// Handle dynamic subcategory loading
+function initializeCategoryHandler(mainCategorySelectId, subCategorySelectId) {
+    const mainCategorySelect = document.getElementById(mainCategorySelectId);
+    const subCategorySelect = document.getElementById(subCategorySelectId);
+    
+    if (mainCategorySelect && subCategorySelect) {
+        mainCategorySelect.addEventListener('change', function() {
+            const mainCategoryId = this.value;
+            
+            // Clear subcategory options
+            subCategorySelect.innerHTML = '<option value="">Loading...</option>';
+            
+            if (mainCategoryId) {
+                fetch(`/admin-panel/get-subcategories/${mainCategoryId}/`, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken()
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    subCategorySelect.innerHTML = '<option value="">Select Sub Category</option>';
+                    
+                    if (data.success && data.subcategories) {
+                        data.subcategories.forEach(subcategory => {
+                            const option = document.createElement('option');
+                            option.value = subcategory.id;
+                            option.textContent = subcategory.name;
+                            subCategorySelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading subcategories:', error);
+                    subCategorySelect.innerHTML = '<option value="">Error loading subcategories</option>';
+                });
+            } else {
+                subCategorySelect.innerHTML = '<option value="">Select Main Category First</option>';
+            }
+        });
+    }
+}
+
+// File upload handling
+function initializeFileUpload() {
+    const fileInput = document.getElementById('productImage');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    
+    if (fileInput && fileUploadArea) {
+        // Click to upload
+        fileUploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // Drag and drop
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('border-primary');
+        });
+        
+        fileUploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('border-primary');
+        });
+        
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('border-primary');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFilePreview(files[0]);
+            }
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFilePreview(e.target.files[0]);
+            }
+        });
+    }
+}
+
+// Edit form file upload handling
+function initializeEditFileUpload() {
+    setTimeout(() => {
+        const editFileInput = document.getElementById('editProductImage');
+        const editFileUploadArea = document.getElementById('editFileUploadArea');
+        const editImagePreview = document.getElementById('editImagePreview');
+        const editPreviewImg = document.getElementById('editPreviewImg');
+        
+        if (editFileInput && editFileUploadArea) {
+            // Remove any existing event listeners by cloning the elements
+            const newEditFileUploadArea = editFileUploadArea.cloneNode(true);
+            editFileUploadArea.parentNode.replaceChild(newEditFileUploadArea, editFileUploadArea);
+            
+            // Click to upload
+            newEditFileUploadArea.addEventListener('click', () => {
+                editFileInput.click();
+            });
+            
+            // Drag and drop
+            newEditFileUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                newEditFileUploadArea.classList.add('border-primary');
+            });
+            
+            newEditFileUploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                newEditFileUploadArea.classList.remove('border-primary');
+            });
+            
+            newEditFileUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                newEditFileUploadArea.classList.remove('border-primary');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    editFileInput.files = files;
+                    handleEditFilePreview(files[0]);
+                }
+            });
+            
+            // File input change
+            editFileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleEditFilePreview(e.target.files[0]);
+                }
+            });
+        } else {
+        }
+    }, 200);
+}
+
+function handleFilePreview(file) {
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showAlert('Please select a valid image file', 'danger');
+        return;
+    }
+    
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showAlert('Image size should not exceed 5MB', 'danger');
+        return;
+    }
+    
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        fileUploadArea.style.display = 'none';
+        imagePreview.classList.remove('d-none');
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleEditFilePreview(file) {
+    const editFileUploadArea = document.getElementById('editFileUploadArea');
+    const editImagePreview = document.getElementById('editImagePreview');
+    const editPreviewImg = document.getElementById('editPreviewImg');
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showAlert('Please select a valid image file', 'danger');
+        return;
+    }
+    
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showAlert('Image size should not exceed 5MB', 'danger');
+        return;
+    }
+    
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        editPreviewImg.src = e.target.result;
+        editFileUploadArea.style.display = 'none';
+        editImagePreview.classList.remove('d-none');
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeImage() {
+    const fileInput = document.getElementById('productImage');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const imagePreview = document.getElementById('imagePreview');
+    
+    if (fileInput) fileInput.value = '';
+}
+
+function removeEditImage() {
+    const editFileInput = document.getElementById('editProductImage');
+    const editFileUploadArea = document.getElementById('editFileUploadArea');
+    const editImagePreview = document.getElementById('editImagePreview');
+    
+    if (editFileInput) editFileInput.value = '';
+    if (editImagePreview) editImagePreview.classList.add('d-none');
+    if (editFileUploadArea) editFileUploadArea.style.display = 'block';
+}
+
+// Event delegation for button clicks
+document.addEventListener('click', function(e) {
+    // View product buttons
+    if (e.target.closest('.view-product-btn')) {
+        e.preventDefault();
+        const button = e.target.closest('.view-product-btn');
+        const productId = button.dataset.productId;
+        viewProduct(productId);
+    }
+    
+    // Edit product buttons
+    else if (e.target.closest('.edit-product-btn')) {
+        e.preventDefault();
+        const button = e.target.closest('.edit-product-btn');
+        const productId = button.dataset.productId;
+        editProduct(productId);
+    }
+    
+    // Toggle availability buttons
+    else if (e.target.closest('.toggle-availability-btn')) {
+        e.preventDefault();
+        const button = e.target.closest('.toggle-availability-btn');
+        const productId = button.dataset.productId;
+        const isAvailable = button.dataset.available === 'false'; // Note: this is inverted in template
+        toggleAvailability(productId, !isAvailable);
+    }
+    
+    // Delete product buttons
+    else if (e.target.closest('.delete-product-btn')) {
+        e.preventDefault();
+        const button = e.target.closest('.delete-product-btn');
+        const productId = button.dataset.productId;
+        const productName = button.dataset.productName;
+        deleteProduct(productId, productName);
+    }
+});
+
+// Add search initialization function
+function initializeSearch() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const productRows = document.querySelectorAll('tr[id^="product-row-"]');
+            
+            productRows.forEach(row => {
+                const productName = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
+                const productDescription = row.querySelector('td:nth-child(4)')?.textContent.toLowerCase() || '';
+                
+                if (productName.includes(searchTerm) || productDescription.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Update tab counters after search
+            updateCategoryTabCounters();
+        });
+    }
+}
+
+// Global function to update category tab counters
+function updateCategoryTabCounters() {
+
+    const categoryTabs = document.querySelectorAll('[id^="nav-"][id$="-tab"]');
+
+    categoryTabs.forEach(tab => {
+        const categoryId = tab.id.replace('nav-', '').replace('-tab', '');
+        const categoryProducts = document.querySelectorAll(`#nav-${categoryId} tbody tr[id^="product-row-"]`);
+        const productCount = categoryProducts.length;
+
+
+        const tabText = tab.textContent.trim();
+        const categoryName = tabText.replace(/\s*\(\d+\)\s*$/, '');
+        tab.textContent = `${categoryName} (${productCount})`;
+    });
+}
+</script>
+
+<!-- CSV Import Modal -->
+<div class="modal fade" id="importCsvModal" tabindex="-1" aria-labelledby="importCsvModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importCsvModalLabel">
+                    <i class="fas fa-file-csv me-2"></i>Import Products from CSV
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'admin_panel:import_products_csv' %}" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>CSV Format Requirements:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>File must be in CSV format (.csv)</li>
+                            <li>Required columns: name, price, main_category</li>
+                            <li>Optional columns: description, sub_category, available_in_stock, is_available, preparation_time</li>
+                            <li>Main category must already exist in your system</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">Select CSV File</label>
+                        <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                        <div class="form-text">Maximum file size: 10MB</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'admin_panel:download_template_csv' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-download me-1"></i>Download CSV Template
+                        </a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-upload me-2"></i>Import CSV
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Excel Import Modal -->
+<div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importExcelModalLabel">
+                    <i class="fas fa-file-excel me-2"></i>Import Products from Excel
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'admin_panel:import_products_excel' %}" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Excel Format Requirements:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>File must be in Excel format (.xlsx or .xls)</li>
+                            <li>Uses first sheet or sheet named "Products"</li>
+                            <li>Required columns: name, price, main_category</li>
+                            <li>Optional columns: description, sub_category, available_in_stock, is_available, preparation_time</li>
+                            <li>Main category must already exist in your system</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="excel_file" class="form-label">Select Excel File</label>
+                        <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx,.xls" required>
+                        <div class="form-text">Maximum file size: 10MB</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'admin_panel:download_template_excel' %}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-download me-1"></i>Download Excel Template
+                        </a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-upload me-2"></i>Import Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Confirmation Modal -->
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-labelledby="bulkDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="bulkDeleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Bulk Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-warning me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone!
+                </div>
+                <p>Are you sure you want to delete the following <strong id="deleteCount">0</strong> product(s)?</p>
+                <div id="productList" class="bg-light p-3 rounded max-height-200 overflow-auto">
+                    <!-- Product list will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkDelete">
+                    <i class="fas fa-trash me-2"></i>Delete Products
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.max-height-200 {
+    max-height: 200px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let selectedProducts = [];
+    
+    // Initialize category handlers for add product form
+    initializeCategoryHandler('productMainCategory', 'productSubCategory');
+    
+    // Handle add product form submission
+    const addProductForm = document.getElementById('addProductForm');
+    if (addProductForm) {
+        addProductForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adding...';
+            
+            fetch('/admin-panel/products/add/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
+                    modal.hide();
+                    
+                    // Reset form
+                    addProductForm.reset();
+                    document.getElementById('productSubCategory').innerHTML = '<option value="">Select Main Category First</option>';
+                    
+                    // Show success message
+                    showAlert('Product added successfully!', 'success');
+                    
+                    // Reload page to show new product
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showAlert(data.message || 'Error adding product', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Network error occurred', 'error');
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
+    
+    // Prevent any form submissions that might cause page refresh
+    document.addEventListener('submit', function(e) {
+        const action = e.target.action || '';
+        const isImportForm = action.includes('import-csv') || action.includes('import-excel');
+
+        // Allow add/edit product and import forms, block the rest
+        if (!e.target.id || (e.target.id !== 'addProductForm' && e.target.id !== 'editProductForm')) {
+            if (!isImportForm) {
+                e.preventDefault();
+            } else {
+                console.log('Allowing import form submission:', action);
+            }
+        }
+    });
+    
+    // Handle individual product checkbox changes
+    function handleProductCheckboxChange() {
+        const checkboxes = document.querySelectorAll('.product-checkbox');
+        selectedProducts = [];
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedProducts.push({
+                    id: checkbox.value,
+                    name: checkbox.getAttribute('data-product-name')
+                });
+            }
+        });
+        
+        updateBulkActions();
+        updateSelectAllCheckboxes();
+    }
+    
+    // Update bulk actions visibility and selected count
+    function updateBulkActions() {
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        if (selectedProducts.length > 0) {
+            bulkActions.classList.remove('d-none');
+            selectedCount.textContent = selectedProducts.length;
+        } else {
+            bulkActions.classList.add('d-none');
+        }
+    }
+    
+    // Update select all checkboxes based on individual selections
+    function updateSelectAllCheckboxes() {
+        const selectAllCheckboxes = document.querySelectorAll('.select-all-checkbox');
+        
+        selectAllCheckboxes.forEach(selectAllCheckbox => {
+            const categoryId = selectAllCheckbox.getAttribute('data-category');
+            const categoryCheckboxes = document.querySelectorAll(`#nav-${categoryId} .product-checkbox`);
+            const checkedCount = Array.from(categoryCheckboxes).filter(cb => cb.checked).length;
+            
+            if (checkedCount === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedCount === categoryCheckboxes.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        });
+    }
+    
+    // Handle select all checkbox changes
+    function handleSelectAllChange(selectAllCheckbox) {
+        const categoryId = selectAllCheckbox.getAttribute('data-category');
+        const categoryCheckboxes = document.querySelectorAll(`#nav-${categoryId} .product-checkbox`);
+        
+        categoryCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+        
+        handleProductCheckboxChange();
+    }
+    
+    // Add event listeners to product checkboxes
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('product-checkbox')) {
+            handleProductCheckboxChange();
+        } else if (e.target.classList.contains('select-all-checkbox')) {
+            handleSelectAllChange(e.target);
+        }
+    });
+    
+    // Handle bulk delete button click
+    document.getElementById('bulkDeleteBtn').addEventListener('click', function(e) {
+        e.preventDefault(); // Prevent any default action
+        
+        if (selectedProducts.length === 0) return;
+        
+        
+        // Update modal content
+        document.getElementById('deleteCount').textContent = selectedProducts.length;
+        
+        const productList = document.getElementById('productList');
+        productList.innerHTML = selectedProducts.map(product => 
+            `<div class="d-flex align-items-center mb-2">
+                <i class="fas fa-utensils me-2 text-muted"></i>
+                <span>${product.name}</span>
+            </div>`
+        ).join('');
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('bulkDeleteModal'));
+        modal.show();
+    });
+    
+    // Handle bulk delete confirmation
+    document.getElementById('confirmBulkDelete').addEventListener('click', function(e) {
+        e.preventDefault(); // Prevent any default behavior
+        
+        if (selectedProducts.length === 0) return;
+        
+        const button = this;
+        const originalText = button.innerHTML;
+        
+        // Show loading state
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
+        button.disabled = true;
+        
+        // Prepare data
+        const productIds = selectedProducts.map(p => p.id);
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                         document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            showToast('Error', 'Security token not found. Please refresh the page.', 'error');
+            button.innerHTML = originalText;
+            button.disabled = false;
+            return;
+        }
+        
+        // Send bulk delete request
+        fetch('/admin-panel/products/bulk-delete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                product_ids: productIds
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Show success message first
+                showToast('Success', `Successfully deleted ${data.deleted_count} product(s)`, 'success');
+                
+                // Close modal
+                const modalInstance = bootstrap.Modal.getInstance(document.getElementById('bulkDeleteModal'));
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+                
+                // Wait a moment for the toast to show, then refresh the page
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500); // 1.5 second delay to show the success message
+                
+            } else {
+                showToast('Error', data.error || 'Failed to delete products', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            showToast('Error', 'Network error occurred while deleting products', 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    });
+    
+    // Update category tab counters after deletion
+    // Toast notification function
+    function showToast(title, message, type) {
+        // Create toast element
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <strong>${title}:</strong> ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        // Add to toast container (create if doesn't exist)
+        let toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toastContainer';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '1055';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        
+        // Show toast
+        const toastElement = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+        
+        // Remove after hiding
+        toastElement.addEventListener('hidden.bs.toast', function() {
+            this.remove();
+        });
+    }
+});
+</script>
+
+{% endblock %}

@@ -1,5 +1,5 @@
 from django import forms
-from .models import Product, MainCategory, SubCategory, TableInfo
+from .models import Product, MainCategory, SubCategory, TableInfo, HappyHourPromotion
 from accounts.models import User, Role
 
 class ProductForm(forms.ModelForm):
@@ -20,7 +20,13 @@ class ProductForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        owner = kwargs.pop('owner', None)
         super().__init__(*args, **kwargs)
+        
+        # Filter main categories by owner
+        if owner:
+            self.fields['main_category'].queryset = MainCategory.objects.filter(owner=owner)
+        
         self.fields['sub_category'].queryset = SubCategory.objects.none()
         
         if 'main_category' in self.data:
@@ -97,3 +103,98 @@ class StaffForm(forms.ModelForm):
             raise forms.ValidationError("Passwords don't match.")
         
         return cleaned_data
+
+
+class HappyHourPromotionForm(forms.ModelForm):
+    DAYS_CHOICES = [
+        ('1', 'Monday'),
+        ('2', 'Tuesday'),
+        ('3', 'Wednesday'),
+        ('4', 'Thursday'),
+        ('5', 'Friday'),
+        ('6', 'Saturday'),
+        ('7', 'Sunday'),
+    ]
+    
+    days_selection = forms.MultipleChoiceField(
+        choices=DAYS_CHOICES,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+        label="Days of Week"
+    )
+    
+    class Meta:
+        model = HappyHourPromotion
+        fields = ['name', 'description', 'discount_percentage', 'start_time', 'end_time', 
+                 'days_selection', 'products', 'main_categories', 'sub_categories', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Happy Hour Special'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 
+                                               'placeholder': 'Optional description of the promotion'}),
+            'discount_percentage': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 
+                                                          'min': '0.01', 'max': '99.99'}),
+            'start_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'end_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'products': forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+            'main_categories': forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+            'sub_categories': forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'name': 'Promotion Name',
+            'description': 'Description',
+            'discount_percentage': 'Discount Percentage (%)',
+            'start_time': 'Start Time',
+            'end_time': 'End Time',
+            'products': 'Specific Products',
+            'main_categories': 'Main Categories',
+            'sub_categories': 'Sub Categories',
+            'is_active': 'Active',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        owner = kwargs.pop('owner', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter categories and products by owner
+        if owner:
+            self.fields['products'].queryset = Product.objects.filter(main_category__owner=owner)
+            self.fields['main_categories'].queryset = MainCategory.objects.filter(owner=owner)
+            self.fields['sub_categories'].queryset = SubCategory.objects.filter(main_category__owner=owner)
+        
+        # Pre-populate days_selection if editing existing promotion
+        if self.instance.pk and self.instance.days_of_week:
+            self.fields['days_selection'].initial = self.instance.days_of_week.split(',')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get('start_time')
+        end_time = cleaned_data.get('end_time')
+        products = cleaned_data.get('products')
+        main_categories = cleaned_data.get('main_categories')
+        sub_categories = cleaned_data.get('sub_categories')
+        days_selection = cleaned_data.get('days_selection')
+        
+        # Validate that at least one target is selected
+        if not any([products, main_categories, sub_categories]):
+            raise forms.ValidationError(
+                "Please select at least one product, category, or subcategory for this promotion."
+            )
+        
+        # Validate that at least one day is selected
+        if not days_selection:
+            raise forms.ValidationError("Please select at least one day of the week.")
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        promotion = super().save(commit=False)
+        
+        # Convert days_selection to comma-separated string
+        days_selection = self.cleaned_data.get('days_selection', [])
+        promotion.days_of_week = ','.join(days_selection)
+        
+        if commit:
+            promotion.save()
+            self.save_m2m()
+        
+        return promotion

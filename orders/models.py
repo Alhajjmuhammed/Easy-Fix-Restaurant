@@ -13,6 +13,10 @@ class Order(models.Model):
         ('ready', 'Ready'),
         ('served', 'Served'),
         ('cancelled', 'Cancelled'),
+        ('customer_refused', 'Customer Refused'),
+        ('kitchen_error', 'Kitchen Error'),
+        ('quality_issue', 'Quality Issue'),
+        ('wasted', 'Food Wasted'),
     ]
     
     PAYMENT_STATUS_CHOICES = [
@@ -35,10 +39,51 @@ class Order(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"Order {self.order_number} - Table {self.table_info.tbl_no}"
+        return f"Order {self.order_number} - Table {self.table_info.tbl_no} ({self.get_owner().restaurant_name})"
+    
+    @property
+    def owner(self):
+        """Get the owner this order belongs to through the customer"""
+        return self.ordered_by.get_owner()
+    
+    def get_owner(self):
+        """Alternative method to get owner for consistency"""
+        return self.owner
     
     def get_total_products(self):
         return sum(item.quantity for item in self.order_items.all())
+    
+    def get_subtotal(self):
+        """Get subtotal before tax and discounts"""
+        return sum(item.get_total_price() for item in self.order_items.all())
+    
+    def get_total_discount(self):
+        """Calculate total discount amount from promotional items"""
+        total_discount = Decimal('0.00')
+        for item in self.order_items.all():
+            if hasattr(item.product, 'has_active_promotion') and item.product.has_active_promotion():
+                original_price = item.product.price
+                discounted_price = item.product.get_current_price()
+                discount_per_item = original_price - discounted_price
+                total_discount += discount_per_item * item.quantity
+        return total_discount
+    
+    def get_tax_amount(self):
+        """Calculate tax amount (placeholder - can be configured)"""
+        # For now, using 10% tax rate - this can be made configurable
+        tax_rate = Decimal('0.10')
+        return self.get_subtotal() * tax_rate
+    
+    @property
+    def tax_rate(self):
+        """Tax rate as percentage for display"""
+        return 10  # 10% - can be made configurable
+    
+    def get_total(self):
+        """Get final total including tax"""
+        subtotal = self.get_subtotal()
+        tax = self.get_tax_amount()
+        return subtotal + tax
     
     def calculate_total(self):
         total = sum(item.get_subtotal() for item in self.order_items.all())
@@ -61,6 +106,14 @@ class OrderItem(models.Model):
     
     def get_subtotal(self):
         return self.quantity * self.unit_price
+    
+    def get_total_price(self):
+        """Get total price considering current promotional pricing"""
+        # Use current promotional price if available
+        if hasattr(self.product, 'get_current_price'):
+            current_price = self.product.get_current_price()
+            return self.quantity * current_price
+        return self.get_subtotal()
     
     def save(self, *args, **kwargs):
         if not self.unit_price:

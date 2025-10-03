@@ -7,18 +7,11 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('menu/', views.menu, name='menu'),
     
-    # Owner dashboard URLs
-    path('owner/', views.owner_dashboard, name='owner_dashboard'),
-    path('owner/products/', views.manage_products, name='manage_products'),
-    path('owner/products/add/', views.add_product, name='add_product'),
-    path('owner/products/edit/<int:product_id>/', views.edit_product, name='edit_product'),
-    path('owner/products/delete/<int:product_id>/', views.delete_product, name='delete_product'),
-    path('owner/categories/', views.manage_categories, name='manage_categories'),
-    path('owner/categories/add/', views.add_category, name='add_category'),
-    path('owner/subcategories/add/', views.add_subcategory, name='add_subcategory'),
-    path('owner/staff/', views.manage_staff, name='manage_staff'),
-    path('owner/staff/add/', views.add_staff, name='add_staff'),
-    path('owner/orders/', views.view_orders, name='view_orders'),
-    path('owner/tables/', views.manage_tables, name='manage_tables'),
-    path('owner/tables/add/', views.add_table, name='add_table'),
+    # Happy Hour Management
+    path('promotions/', views.manage_promotions, name='manage_promotions'),
+    path('promotions/add/', views.add_promotion, name='add_promotion'),
+    path('promotions/<int:promotion_id>/edit/', views.edit_promotion, name='edit_promotion'),
+    path('promotions/<int:promotion_id>/delete/', views.delete_promotion, name='delete_promotion'),
+    path('promotions/<int:promotion_id>/toggle/', views.toggle_promotion, name='toggle_promotion'),
+    path('promotions/<int:promotion_id>/preview/', views.promotion_preview, name='promotion_preview'),
 ]

@@ -41,7 +41,7 @@
                                         <strong>{{ item.name }}</strong><br>
                                         <small class="text-muted">{{ item.quantity }}x ${{ item.price }}</small>
                                     </div>
-                                    <span>${{ item.price|floatformat:2|mul:item.quantity|floatformat:2 }}</span>
+                                    <span>${{ item.total|floatformat:2 }}</span>
                                 </div>
                             {% endfor %}
                             

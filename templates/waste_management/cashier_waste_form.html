@@ -1,0 +1,489 @@
+{% extends 'cashier_base.html' %}
+{% load static %}
+
+{% block title %}Waste Recording - Cashier{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cashier-waste-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+    
+    .waste-header {
+        background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
+        color: white;
+        padding: 2.5rem 0;
+        margin: -1rem -15px 3rem -15px;
+        border-radius: 0 0 25px 25px;
+        text-align: center;
+        box-shadow: 0 6px 20px rgba(255, 56, 56, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .waste-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        opacity: 0.1;
+    }
+    
+    .waste-header-content {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .quick-form-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        border: none;
+        margin-bottom: 2rem;
+        overflow: hidden;
+    }
+    
+    .quick-form-header {
+        background: linear-gradient(135deg, #2ed573 0%, #7bed9f 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        border: none;
+        position: relative;
+    }
+    
+    .quick-form-header h5 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+    
+    .form-section {
+        padding: 2rem;
+    }
+    
+    .form-row {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    
+    .form-control, .form-select {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #ff4757;
+        box-shadow: 0 0 0 0.2rem rgba(255, 71, 87, 0.25);
+        background: white;
+    }
+    
+    .required-asterisk {
+        color: #ff4757;
+        font-weight: bold;
+    }
+    
+    .btn-record-waste {
+        background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
+        border: none;
+        padding: 1rem 2rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        border-radius: 12px;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+    }
+    
+    .btn-record-waste:hover {
+        background: linear-gradient(135deg, #ff3838 0%, #ff4757 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
+        color: white;
+    }
+    
+    .btn-back {
+        background: #6c757d;
+        border: none;
+        padding: 1rem 2rem;
+        font-weight: 500;
+        border-radius: 12px;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-back:hover {
+        background: #5a6268;
+        transform: translateY(-1px);
+        color: white;
+    }
+    
+    .recent-waste-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px dashed #dee2e6;
+        border-radius: 20px;
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+    }
+    
+    .quantity-input {
+        text-align: center;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .cost-preview {
+        background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: 1rem;
+        text-align: center;
+        font-weight: 600;
+        color: #2d3436;
+    }
+    
+    .icon-xl {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    @media (max-width: 768px) {
+        .waste-header {
+            margin: -0.5rem -15px 2rem -15px;
+            padding: 2rem 1rem;
+        }
+        
+        .form-section {
+            padding: 1.5rem;
+        }
+        
+        .btn-record-waste, .btn-back {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+    }
+    
+    /* Loading animation */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #ff4757;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Waste Recording Header -->
+<div class="waste-header">
+    <div class="waste-header-content">
+        <div class="container">
+            <div class="cashier-waste-container">
+                <h1 class="mb-3">
+                    <i class="fas fa-trash-alt me-3"></i>
+                    Food Waste Recording
+                </h1>
+                <p class="mb-0 opacity-75 lead">
+                    Quick and accurate waste incident reporting
+                </p>
+                <div class="mt-3">
+                    <small class="opacity-75">
+                        <i class="fas fa-user me-2"></i>{{ user.get_full_name|default:user.username }}
+                        {% if user.restaurant_name %}
+                        <span class="mx-3">•</span>
+                        <i class="fas fa-store me-2"></i>{{ user.restaurant_name }}
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="cashier-waste-container">
+        <!-- Quick Waste Recording Form -->
+        <div class="quick-form-card">
+            <div class="quick-form-header">
+                <h5>
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Record New Waste Incident
+                </h5>
+            </div>
+            
+            <div class="form-section">
+                <form id="cashierWasteForm">
+                    {% csrf_token %}
+                    
+                    <!-- Product Selection Row -->
+                    <div class="row form-row">
+                        <div class="col-md-8">
+                            <label for="productSelect" class="form-label">
+                                <i class="fas fa-utensils me-2"></i>Product <span class="required-asterisk">*</span>
+                            </label>
+                            <select class="form-select" id="productSelect" name="product" required>
+                                <option value="">🔍 Select a product...</option>
+                                {% for product in products %}
+                                    <option value="{{ product.id }}" data-price="{{ product.price }}">
+                                        {{ product.name }} - ${{ product.price }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="quantityInput" class="form-label">
+                                <i class="fas fa-sort-numeric-up me-2"></i>Quantity <span class="required-asterisk">*</span>
+                            </label>
+                            <input type="number" class="form-control quantity-input" id="quantityInput" 
+                                   name="quantity" min="1" max="99" placeholder="1" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Reason and Disposal Row -->
+                    <div class="row form-row">
+                        <div class="col-md-6">
+                            <label for="wasteReason" class="form-label">
+                                <i class="fas fa-question-circle me-2"></i>Waste Reason <span class="required-asterisk">*</span>
+                            </label>
+                            <select class="form-select" id="wasteReason" name="waste_reason" required>
+                                <option value="">📋 Select reason...</option>
+                                <option value="customer_refused">😞 Customer Refused</option>
+                                <option value="customer_left">🚶 Customer Left Before Pickup</option>
+                                <option value="wrong_order">❌ Wrong Order Made</option>
+                                <option value="quality_issue">⚠️ Quality Issue</option>
+                                <option value="kitchen_error">👨‍🍳 Kitchen Error</option>
+                                <option value="overcooking">🔥 Overcooking</option>
+                                <option value="undercooking">❄️ Undercooking</option>
+                                <option value="contamination">🦠 Food Contamination</option>
+                                <option value="other">❓ Other Reason</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="disposalMethod" class="form-label">
+                                <i class="fas fa-recycle me-2"></i>Disposal Method
+                            </label>
+                            <select class="form-select" id="disposalMethod" name="disposal_method">
+                                <option value="waste_bin">🗑️ Waste Bin</option>
+                                <option value="staff_meal">🍽️ Staff Meal</option>
+                                <option value="compost">🌱 Compost</option>
+                                <option value="donated">❤️ Donated</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes Section -->
+                    <div class="form-row">
+                        <label for="wasteNotes" class="form-label">
+                            <i class="fas fa-sticky-note me-2"></i>Additional Notes (Optional)
+                        </label>
+                        <textarea class="form-control" id="wasteNotes" name="notes" rows="3" 
+                                  placeholder="Any additional details about this waste incident..."></textarea>
+                    </div>
+                    
+                    <!-- Cost Preview -->
+                    <div id="costPreview" class="cost-preview" style="display: none;">
+                        <i class="fas fa-dollar-sign me-2"></i>
+                        Estimated Cost Impact: <span id="estimatedCost">$0.00</span>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{% url 'cashier:dashboard' %}" class="btn btn-back">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </a>
+                        <button type="submit" class="btn btn-record-waste" id="submitBtn">
+                            <i class="fas fa-save me-2"></i>Record Waste Incident
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Recent Records -->
+        <div class="recent-waste-card">
+            <div id="recentRecords">
+                <i class="fas fa-history icon-xl d-block"></i>
+                <h5 class="mb-2">Your Recent Waste Records</h5>
+                <p class="mb-0">Recent waste incidents you've recorded will appear here after submission.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="text-center text-white">
+        <div class="loading-spinner mb-3"></div>
+        <p>Recording waste incident...</p>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0" style="border-radius: 20px;">
+            <div class="modal-header bg-success text-white border-0" style="border-radius: 20px 20px 0 0;">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-2"></i>Waste Recorded Successfully
+                </h5>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center mb-3">
+                    <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                </div>
+                <h6 class="text-center mb-3">Incident Recorded Successfully!</h6>
+                <div id="wasteDetails" class="bg-light p-3 rounded"></div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal" style="border-radius: 12px;">
+                    <i class="fas fa-check me-2"></i>Continue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('cashierWasteForm');
+    const productSelect = document.getElementById('productSelect');
+    const quantityInput = document.getElementById('quantityInput');
+    const costPreview = document.getElementById('costPreview');
+    const estimatedCost = document.getElementById('estimatedCost');
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    
+    // Update cost preview when product or quantity changes
+    function updateCostPreview() {
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        if (selectedOption && selectedOption.dataset.price && quantity > 0) {
+            const price = parseFloat(selectedOption.dataset.price);
+            const totalCost = (price * quantity).toFixed(2);
+            estimatedCost.textContent = '$' + totalCost;
+            costPreview.style.display = 'block';
+        } else {
+            costPreview.style.display = 'none';
+        }
+    }
+    
+    productSelect.addEventListener('change', updateCostPreview);
+    quantityInput.addEventListener('input', updateCostPreview);
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Show loading overlay
+        loadingOverlay.style.display = 'flex';
+        submitBtn.disabled = true;
+        
+        // Collect form data
+        const formData = {
+            product_id: productSelect.value,
+            quantity_wasted: quantityInput.value,
+            waste_reason: document.getElementById('wasteReason').value,
+            disposal_method: document.getElementById('disposalMethod').value,
+            notes: document.getElementById('wasteNotes').value
+        };
+        
+        // Submit to server
+        fetch('{% url "waste_management:record_waste" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingOverlay.style.display = 'none';
+            submitBtn.disabled = false;
+            
+            if (data.success) {
+                // Show success modal with details
+                document.getElementById('wasteDetails').innerHTML = `
+                    <div class="row">
+                        <div class="col-6"><strong>Product:</strong></div>
+                        <div class="col-6">${data.waste_log.product_name}</div>
+                        <div class="col-6"><strong>Quantity:</strong></div>
+                        <div class="col-6">${data.waste_log.quantity_wasted}</div>
+                        <div class="col-6"><strong>Reason:</strong></div>
+                        <div class="col-6">${data.waste_log.waste_reason}</div>
+                        <div class="col-6"><strong>Cost Impact:</strong></div>
+                        <div class="col-6 text-danger"><strong>$${data.waste_log.total_cost}</strong></div>
+                    </div>
+                `;
+                
+                const modal = new bootstrap.Modal(document.getElementById('successModal'));
+                modal.show();
+                
+                // Reset form
+                form.reset();
+                costPreview.style.display = 'none';
+                
+                // Update recent records
+                updateRecentRecords();
+                
+            } else {
+                alert('Error: ' + (data.error || 'Failed to record waste'));
+            }
+        })
+        .catch(error => {
+            loadingOverlay.style.display = 'none';
+            submitBtn.disabled = false;
+            console.error('Error:', error);
+            alert('An error occurred while recording waste. Please try again.');
+        });
+    });
+    
+    function updateRecentRecords() {
+        document.getElementById('recentRecords').innerHTML = `
+            <i class="fas fa-check-circle icon-xl d-block text-success"></i>
+            <h5 class="mb-2 text-success">Latest Incident Recorded!</h5>
+            <p class="mb-0">Waste incident has been successfully logged. You can record another incident above.</p>
+        `;
+    }
+});
+</script>
+{% endblock %}

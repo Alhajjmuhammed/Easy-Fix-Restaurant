@@ -1,0 +1,364 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Create Happy Hour Promotion - Restaurant System{% endblock %}
+
+{% block page_title %}Create Happy Hour Promotion{% endblock %}
+{% block page_description %}Set up time-based promotional pricing for your products{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .section-title {
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .days-checkbox-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .day-checkbox {
+        display: flex;
+        align-items: center;
+        background: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .day-checkbox:hover {
+        border-color: var(--primary-color);
+        background-color: #f8f9fa;
+    }
+    
+    .day-checkbox input:checked + label {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .target-section {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .checkbox-grid {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        padding: 1rem;
+        border-radius: 4px;
+        background-color: white;
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .preview-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .discount-preview {
+        font-size: 2rem;
+        font-weight: bold;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-4">
+    <a href="{% url 'restaurant:manage_promotions' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Promotions
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post" id="promotionForm">
+            {% csrf_token %}
+            
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <h4 class="section-title"><i class="fas fa-info-circle"></i> Basic Information</h4>
+                
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                        {% endif %}
+                        <div class="help-text">Choose a descriptive name for your promotion</div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.discount_percentage.id_for_label }}" class="form-label">{{ form.discount_percentage.label }}</label>
+                        {{ form.discount_percentage }}
+                        {% if form.discount_percentage.errors %}
+                            <div class="text-danger small">{{ form.discount_percentage.errors.0 }}</div>
+                        {% endif %}
+                        <div class="help-text">Enter discount from 1% to 99%</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                    {% endif %}
+                    <div class="help-text">Optional description visible to customers</div>
+                </div>
+            </div>
+            
+            <!-- Timing Section -->
+            <div class="form-section">
+                <h4 class="section-title"><i class="fas fa-clock"></i> Timing & Schedule</h4>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.start_time.id_for_label }}" class="form-label">{{ form.start_time.label }}</label>
+                        {{ form.start_time }}
+                        {% if form.start_time.errors %}
+                            <div class="text-danger small">{{ form.start_time.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.end_time.id_for_label }}" class="form-label">{{ form.end_time.label }}</label>
+                        {{ form.end_time }}
+                        {% if form.end_time.errors %}
+                            <div class="text-danger small">{{ form.end_time.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Days of Week</label>
+                    <div class="days-checkbox-container">
+                        {% for choice in form.days_selection %}
+                            <div class="day-checkbox">
+                                {{ choice.tag }}
+                                <label for="{{ choice.id_for_label }}" class="ms-2 mb-0">{{ choice.choice_label }}</label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% if form.days_selection.errors %}
+                        <div class="text-danger small mt-2">{{ form.days_selection.errors.0 }}</div>
+                    {% endif %}
+                    <div class="help-text">Select the days when this promotion should be active</div>
+                </div>
+            </div>
+            
+            <!-- Target Products Section -->
+            <div class="form-section">
+                <h4 class="section-title"><i class="fas fa-bullseye"></i> Target Products</h4>
+                <p class="text-muted">Select which products, categories, or subcategories this promotion applies to. You can mix and match different levels.</p>
+                
+                <div class="row">
+                    <!-- Specific Products -->
+                    <div class="col-md-4">
+                        <div class="target-section">
+                            <h6><i class="fas fa-utensils"></i> Specific Products</h6>
+                            <div class="checkbox-grid">
+                                {% for choice in form.products %}
+                                    <div class="form-check">
+                                        {{ choice.tag }}
+                                        <label for="{{ choice.id_for_label }}" class="form-check-label small">
+                                            {{ choice.choice_label }}
+                                        </label>
+                                    </div>
+                                {% empty %}
+                                    <p class="text-muted small">No products available</p>
+                                {% endfor %}
+                            </div>
+                            {% if form.products.errors %}
+                                <div class="text-danger small">{{ form.products.errors.0 }}</div>
+                            {% endif %}
+                            <div class="help-text">Individual products to include</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Categories -->
+                    <div class="col-md-4">
+                        <div class="target-section">
+                            <h6><i class="fas fa-tags"></i> Main Categories</h6>
+                            <div class="checkbox-grid">
+                                {% for choice in form.main_categories %}
+                                    <div class="form-check">
+                                        {{ choice.tag }}
+                                        <label for="{{ choice.id_for_label }}" class="form-check-label small">
+                                            {{ choice.choice_label }}
+                                        </label>
+                                    </div>
+                                {% empty %}
+                                    <p class="text-muted small">No categories available</p>
+                                {% endfor %}
+                            </div>
+                            {% if form.main_categories.errors %}
+                                <div class="text-danger small">{{ form.main_categories.errors.0 }}</div>
+                            {% endif %}
+                            <div class="help-text">All products in these categories</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sub Categories -->
+                    <div class="col-md-4">
+                        <div class="target-section">
+                            <h6><i class="fas fa-tag"></i> Sub Categories</h6>
+                            <div class="checkbox-grid">
+                                {% for choice in form.sub_categories %}
+                                    <div class="form-check">
+                                        {{ choice.tag }}
+                                        <label for="{{ choice.id_for_label }}" class="form-check-label small">
+                                            {{ choice.choice_label }}
+                                        </label>
+                                    </div>
+                                {% empty %}
+                                    <p class="text-muted small">No subcategories available</p>
+                                {% endfor %}
+                            </div>
+                            {% if form.sub_categories.errors %}
+                                <div class="text-danger small">{{ form.sub_categories.errors.0 }}</div>
+                            {% endif %}
+                            <div class="help-text">All products in these subcategories</div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger mt-3">
+                        {{ form.non_field_errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Status Section -->
+            <div class="form-section">
+                <h4 class="section-title"><i class="fas fa-toggle-on"></i> Status</h4>
+                <div class="form-check">
+                    {{ form.is_active }}
+                    <label for="{{ form.is_active.id_for_label }}" class="form-check-label">
+                        {{ form.is_active.label }}
+                    </label>
+                    {% if form.is_active.errors %}
+                        <div class="text-danger small">{{ form.is_active.errors.0 }}</div>
+                    {% endif %}
+                    <div class="help-text">Enable this promotion immediately after creation</div>
+                </div>
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-check-circle"></i> Create Promotion
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Preview Card -->
+    <div class="col-lg-4">
+        <div class="preview-card">
+            <h5><i class="fas fa-eye"></i> Preview</h5>
+            <div class="discount-preview" id="discountPreview">0% OFF</div>
+            <p class="mb-0 text-center" id="promoNamePreview">Promotion Name</p>
+            <hr>
+            <div id="timePreview">
+                <strong>Time:</strong> 00:00 - 00:00<br>
+                <strong>Days:</strong> None selected
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li>Higher discounts attract more customers but reduce profit margins</li>
+                    <li>Target slow periods to maximize restaurant utilization</li>
+                    <li>Categories apply to all current and future products in that category</li>
+                    <li>You can combine products, categories, and subcategories in one promotion</li>
+                    <li>Promotions can span midnight (e.g., 22:00 to 02:00)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Real-time preview updates
+document.addEventListener('DOMContentLoaded', function() {
+    const discountInput = document.querySelector('#id_discount_percentage');
+    const nameInput = document.querySelector('#id_name');
+    const startTimeInput = document.querySelector('#id_start_time');
+    const endTimeInput = document.querySelector('#id_end_time');
+    const dayCheckboxes = document.querySelectorAll('input[name="days_selection"]');
+    
+    // Update preview
+    function updatePreview() {
+        const discount = discountInput.value || '0';
+        const name = nameInput.value || 'Promotion Name';
+        const startTime = startTimeInput.value || '00:00';
+        const endTime = endTimeInput.value || '00:00';
+        
+        // Update discount display
+        document.getElementById('discountPreview').textContent = discount + '% OFF';
+        document.getElementById('promoNamePreview').textContent = name;
+        
+        // Update days
+        const selectedDays = [];
+        const dayNames = {
+            '1': 'Mon', '2': 'Tue', '3': 'Wed', '4': 'Thu',
+            '5': 'Fri', '6': 'Sat', '7': 'Sun'
+        };
+        
+        dayCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedDays.push(dayNames[checkbox.value] || checkbox.value);
+            }
+        });
+        
+        document.getElementById('timePreview').innerHTML = 
+            `<strong>Time:</strong> ${startTime} - ${endTime}<br>
+             <strong>Days:</strong> ${selectedDays.length ? selectedDays.join(', ') : 'None selected'}`;
+    }
+    
+    // Add event listeners
+    [discountInput, nameInput, startTimeInput, endTimeInput].forEach(input => {
+        if (input) input.addEventListener('input', updatePreview);
+    });
+    
+    dayCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updatePreview);
+    });
+    
+    // Initial update
+    updatePreview();
+});
+</script>
+{% endblock %}

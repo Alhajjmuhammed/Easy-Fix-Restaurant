@@ -3,13 +3,49 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
+from django.http import HttpResponse
+from django.views.decorators.http import require_GET
+from django.shortcuts import render
+import os
+from accounts.views import qr_code_access
+
+@require_GET
+def clear_pwa_cache(request):
+    """Development tool to clear PWA cache"""
+    return render(request, 'clear-pwa-cache.html')
+
+@require_GET
+def service_worker(request):
+    """Serve the service worker with proper headers"""
+    service_worker_path = os.path.join(settings.BASE_DIR, 'service-worker.js')
+    
+    try:
+        with open(service_worker_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        response = HttpResponse(content, content_type='application/javascript')
+        response['Service-Worker-Allowed'] = '/'
+        response['Cache-Control'] = 'no-cache'
+        return response
+    except FileNotFoundError:
+        return HttpResponse('Service worker not found', status=404)
 
 urlpatterns = [
+    path('', RedirectView.as_view(url='/accounts/login/', permanent=False), name='root'),
+    path('service-worker.js', service_worker, name='service_worker'),
+    path('clear-pwa-cache/', clear_pwa_cache, name='clear_pwa_cache'),  # Development tool
+    # QR Code access - short URL for restaurant access
+    path('r/<str:qr_code>/', qr_code_access, name='qr_code_access'),
     path('admin/', admin.site.urls),
+    path('admin-panel/', include('admin_panel.urls')),
+    path('system-admin/', include('system_admin.urls')),
+    path('cashier/', include('cashier.urls')),
+    path('waste-management/', include('waste_management.urls')),
+    path('reports/', include('reports.urls')),
     path('accounts/', include('accounts.urls')),
-    path('restaurant/', include('restaurant.urls')),
     path('orders/', include('orders.urls')),
-    path('', include('restaurant.urls')),
+    path('restaurant/', include('restaurant.urls')),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Order #{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Edit Order #{{ order.order_number }}</h1>
+                <a href="{% url 'admin_panel:manage_orders' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Orders
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Order Details</h5>
+                </div>
+                <div class="card-body">
+                    <form id="editOrderForm" method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="table_id" class="form-label">Table</label>
+                                    <select class="form-select" id="table_id" name="table_id" required>
+                                        {% for table in tables %}
+                                            <option value="{{ table.id }}" {% if table.id == order.table_info.id %}selected{% endif %}>
+                                                Table {{ table.tbl_no }} ({{ table.tbl_capacity }} seats)
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="customer_id" class="form-label">Customer</label>
+                                    <select class="form-select" id="customer_id" name="customer_id" required>
+                                        {% for customer in customers %}
+                                            <option value="{{ customer.id }}" {% if customer.id == order.ordered_by.id %}selected{% endif %}>
+                                                {{ customer.first_name }} {{ customer.last_name }} ({{ customer.username }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">Status</label>
+                                    <select class="form-select" id="status" name="status" required>
+                                        {% for value, label in status_choices %}
+                                            <option value="{{ value }}" {% if value == order.status %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="order_total" class="form-label">Total Amount</label>
+                                    <input type="text" class="form-control" id="order_total" 
+                                           value="${{ order.total_amount|floatformat:2 }}" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="special_instructions" class="form-label">Special Instructions</label>
+                            <textarea class="form-control" id="special_instructions" name="special_instructions" 
+                                      rows="3" placeholder="Any special instructions...">{{ order.special_instructions }}</textarea>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Order
+                            </button>
+                            <a href="{% url 'admin_panel:view_order' order.id %}" class="btn btn-info">
+                                <i class="fas fa-eye"></i> View Full Order
+                            </a>
+                            <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Order Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Order Number</small>
+                        <div class="fw-bold">{{ order.order_number }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Created</small>
+                        <div>{{ order.created_at|date:"M d, Y g:i A" }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Current Status</small>
+                        <div>
+                            <span class="badge bg-{% if order.status == 'pending' %}warning{% elif order.status == 'confirmed' %}info{% elif order.status == 'preparing' %}primary{% elif order.status == 'ready' %}success{% elif order.status == 'served' %}secondary{% else %}danger{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Table</small>
+                        <div>Table {{ order.table_info.tbl_no }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Customer</small>
+                        <div>{{ order.ordered_by.first_name }} {{ order.ordered_by.last_name }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Total Amount</small>
+                        <div class="h5 text-success">${{ order.total_amount|floatformat:2 }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Order Items</h5>
+                </div>
+                <div class="card-body">
+                    {% for item in order.orderitem_set.all %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <div class="fw-bold">{{ item.product.name }}</div>
+                                <small class="text-muted">Qty: {{ item.quantity }}</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold">${{ item.total_price|floatformat:2 }}</div>
+                                <small class="text-muted">${{ item.price|floatformat:2 }} each</small>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted">No items in this order.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('editOrderForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i> ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // Insert alert at the top of the form
+            this.insertBefore(alertDiv, this.firstChild);
+            
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 3000);
+            
+        } else {
+            // Show error message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i> Error: ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            this.insertBefore(alertDiv, this.firstChild);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i> An error occurred while updating the order.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        this.insertBefore(alertDiv, this.firstChild);
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+</script>
+{% endblock %}

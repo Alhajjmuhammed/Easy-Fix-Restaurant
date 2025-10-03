@@ -1,0 +1,66 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Delete Promotion - Restaurant System{% endblock %}
+
+{% block page_title %}Delete Promotion{% endblock %}
+{% block page_description %}Permanently remove this Happy Hour promotion{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Delete Promotion
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-warning"></i> Warning!</h6>
+                    You are about to permanently delete the following Happy Hour promotion. This action cannot be undone.
+                </div>
+                
+                <div class="promotion-preview p-3 border rounded mb-4">
+                    <h5 class="text-primary">{{ promotion.name }}</h5>
+                    {% if promotion.description %}
+                        <p class="text-muted">{{ promotion.description }}</p>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Discount:</strong> {{ promotion.discount_percentage }}% OFF<br>
+                            <strong>Time:</strong> {{ promotion.start_time|time:"H:i" }} - {{ promotion.end_time|time:"H:i" }}<br>
+                            <strong>Days:</strong> {{ promotion.get_days_display }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Status:</strong> 
+                            <span class="badge {% if promotion.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                {% if promotion.is_active %}Active{% else %}Inactive{% endif %}
+                            </span><br>
+                            <strong>Products Affected:</strong> {{ promotion.get_affected_products_count }}<br>
+                            {% if promotion.is_currently_active %}
+                                <span class="badge bg-warning">Currently Running</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-muted">
+                    <strong>Impact:</strong> After deletion, products affected by this promotion will revert to their regular prices immediately. 
+                    Any customers currently viewing the menu will see the updated prices.
+                </p>
+                
+                <form method="post" class="d-flex justify-content-between">
+                    {% csrf_token %}
+                    <a href="{% url 'restaurant:manage_promotions' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Yes, Delete Promotion
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

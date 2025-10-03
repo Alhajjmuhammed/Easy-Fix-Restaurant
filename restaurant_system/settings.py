@@ -14,26 +14,33 @@ SECRET_KEY = 'django-insecure-your-secret-key-here'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*', 'testserver', '127.0.0.1', 'localhost']
 
 # Application definition
 INSTALLED_APPS = [
+    'daphne',  # Add this for Channels ASGI support
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',  # Add Channels
     'accounts',
     'restaurant',
     'orders',
+    'admin_panel',
+    'system_admin',
+    'cashier',
+    'waste_management',
+    'reports',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',  # Disabled for development
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -85,7 +92,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+
+# Set to East Africa Standard Time (UTC+3) for consistent local/production behavior
+# This matches your system timezone for proper Happy Hour functionality
+TIME_ZONE = 'Africa/Nairobi'  # East Africa Standard Time (UTC+3)
+
 USE_I18N = True
 USE_TZ = True
 
@@ -108,4 +119,32 @@ AUTH_USER_MODEL = 'accounts.User'
 # Login URLs
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
+
+# Channels Configuration for WebSockets
+ASGI_APPLICATION = 'restaurant_system.asgi.application'
+
+# Try Redis first, fall back to in-memory channels for development
+try:
+    import redis
+    # Test Redis connection
+    r = redis.Redis(host='127.0.0.1', port=6379, db=0)
+    r.ping()
+    # Redis is available
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [('127.0.0.1', 6379)],
+            },
+        },
+    }
+    print("✓ Using Redis for WebSocket channels")
+except (ImportError, redis.ConnectionError, redis.ResponseError):
+    # Redis not available, use in-memory channels (development only)
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
+    print("⚠ Using in-memory channels (development only) - Install and start Redis for production")
 LOGOUT_REDIRECT_URL = '/'

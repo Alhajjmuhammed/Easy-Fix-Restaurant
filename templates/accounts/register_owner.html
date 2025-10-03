@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Restaurant Owner Registration{% endblock %}
+
+{% block extra_css %}
+<style>
+.registration-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.registration-card {
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.card-header p {
+    margin: 0.5rem 0 0 0;
+    opacity: 0.9;
+}
+
+.form-section {
+    padding: 2rem;
+}
+
+.section-title {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 0.5rem;
+}
+
+.btn-register {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    border: none;
+    padding: 12px 2rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-register:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+    color: white;
+}
+
+.login-link {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.owner-badge {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: #333;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="registration-container">
+    <div class="container">
+        <div class="registration-card">
+            <div class="card-header">
+                <div class="owner-badge">
+                    <i class="bi bi-crown-fill me-2"></i>Owner Registration
+                </div>
+                <h2>Register Your Restaurant</h2>
+                <p>Join our platform and start managing your restaurant digitally</p>
+            </div>
+            
+            <div class="form-section">
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Personal Information -->
+                    <div class="mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-person-fill me-2"></i>Personal Information
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
+                                    {{ form.first_name }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
+                                    {{ form.last_name }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.username.id_for_label }}" class="form-label">Username *</label>
+                                    {{ form.username }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.email.id_for_label }}" class="form-label">Email *</label>
+                                    {{ form.email }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.phone_number.id_for_label }}" class="form-label">Phone Number *</label>
+                                    {{ form.phone_number }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.address.id_for_label }}" class="form-label">Address *</label>
+                            {{ form.address }}
+                        </div>
+                    </div>
+                    
+                    <!-- Restaurant Information -->
+                    <div class="mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-shop me-2"></i>Restaurant Information
+                        </h5>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.restaurant_name.id_for_label }}" class="form-label">Restaurant Name *</label>
+                            {{ form.restaurant_name }}
+                            {% if form.restaurant_name.help_text %}
+                                <small class="form-text text-muted">{{ form.restaurant_name.help_text }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.restaurant_description.id_for_label }}" class="form-label">Restaurant Description</label>
+                            {{ form.restaurant_description }}
+                            {% if form.restaurant_description.help_text %}
+                                <small class="form-text text-muted">{{ form.restaurant_description.help_text }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Account Security -->
+                    <div class="mb-4">
+                        <h5 class="section-title">
+                            <i class="bi bi-shield-lock-fill me-2"></i>Account Security
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.password.id_for_label }}" class="form-label">Password *</label>
+                                    {{ form.password }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.confirm_password.id_for_label }}" class="form-label">Confirm Password *</label>
+                                    {{ form.confirm_password }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-register">
+                            <i class="bi bi-shop me-2"></i>Register Restaurant
+                        </button>
+                    </div>
+                </form>
+
+                <div class="login-link">
+                    <p class="text-muted mb-2">Already have an account?</p>
+                    <a href="{% url 'accounts:login' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Login Here
+                    </a>
+                    <br><br>
+                    <p class="text-muted mb-2">Want to register as staff or customer?</p>
+                    <a href="{% url 'accounts:register' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-person-plus me-2"></i>Regular Registration
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

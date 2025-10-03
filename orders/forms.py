@@ -1,6 +1,7 @@
 from django import forms
 from restaurant.models import TableInfo
 from .models import Order
+from accounts.models import get_owner_filter
 
 class TableSelectionForm(forms.Form):
     table_number = forms.CharField(
@@ -14,15 +15,35 @@ class TableSelectionForm(forms.Form):
         label='Table Number'
     )
     
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.restaurant = kwargs.pop('restaurant', None)  # Add restaurant parameter
+        super().__init__(*args, **kwargs)
+    
     def clean_table_number(self):
         table_number = self.cleaned_data['table_number'].strip()
         
         try:
-            table = TableInfo.objects.get(tbl_no=table_number)
+            # Filter tables by restaurant (from QR code) or user's owner
+            queryset = TableInfo.objects.all()
+            
+            if self.restaurant:
+                # Use restaurant from QR code
+                queryset = queryset.filter(owner=self.restaurant)
+            elif self.user:
+                # Fall back to user's owner filter
+                owner_filter = get_owner_filter(self.user)
+                if owner_filter:
+                    queryset = queryset.filter(owner=owner_filter)
+            
+            table = queryset.get(tbl_no=table_number)
             if not table.is_available:
                 raise forms.ValidationError('This table is currently not available.')
         except TableInfo.DoesNotExist:
-            raise forms.ValidationError('Invalid table number. Please check and try again.')
+            if self.restaurant:
+                raise forms.ValidationError(f'Table {table_number} not found at {self.restaurant.restaurant_name}.')
+            else:
+                raise forms.ValidationError('Invalid table number. Please check and try again.')
         
         return table_number
 

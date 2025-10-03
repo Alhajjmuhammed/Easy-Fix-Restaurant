@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Menu - Restaurant System{% endblock %}
+{% block title %}Menu - {{ user.get_restaurant_name }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -108,11 +108,11 @@
                                         {% if product.available_in_stock > 0 %}
                                             <div class="d-flex align-items-center gap-2">
                                                 <div class="input-group input-group-sm" style="width: 100px;">
-                                                    <button class="btn btn-outline-secondary" type="button" onclick="changeQuantity({{ product.id }}, -1)">-</button>
+                                                    <button class="btn btn-outline-secondary qty-decrease" type="button" data-product-id="{{ product.id }}">-</button>
                                                     <input type="number" class="form-control text-center" id="qty-{{ product.id }}" value="1" min="1" max="{{ product.available_in_stock }}">
-                                                    <button class="btn btn-outline-secondary" type="button" onclick="changeQuantity({{ product.id }}, 1)">+</button>
+                                                    <button class="btn btn-outline-secondary qty-increase" type="button" data-product-id="{{ product.id }}" data-max="{{ product.available_in_stock }}">+</button>
                                                 </div>
-                                                <button class="btn btn-primary btn-sm flex-grow-1" onclick="addToCart({{ product.id }})">
+                                                <button class="btn btn-primary btn-sm flex-grow-1 add-to-cart-btn" data-product-id="{{ product.id }}">
                                                     <i class="bi bi-cart-plus"></i> Add
                                                 </button>
                                             </div>
@@ -160,6 +160,32 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Event delegation for quantity decrease
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('qty-decrease')) {
+            const productId = e.target.getAttribute('data-product-id');
+            changeQuantity(productId, -1);
+        }
+    });
+    
+    // Event delegation for quantity increase
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('qty-increase')) {
+            const productId = e.target.getAttribute('data-product-id');
+            changeQuantity(productId, 1);
+        }
+    });
+    
+    // Event delegation for add to cart
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('add-to-cart-btn')) {
+            const productId = e.target.getAttribute('data-product-id');
+            addToCart(productId);
+        }
+    });
+});
+
 function changeQuantity(productId, change) {
     const qtyInput = document.getElementById(`qty-${productId}`);
     let newQty = parseInt(qtyInput.value) + change;

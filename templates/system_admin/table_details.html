@@ -1,0 +1,97 @@
+<div class="table-details">
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Table {{ table.tbl_no }}</h4>
+            <p><strong>Restaurant:</strong> {{ table.owner.restaurant_name }}</p>
+            <p><strong>Capacity:</strong> {{ table.capacity }} seats</p>
+            {% if table.location %}
+            <p><strong>Location:</strong> {{ table.location }}</p>
+            {% endif %}
+            <p><strong>Status:</strong> 
+                <span class="badge {% if table.is_available %}bg-success{% else %}bg-danger{% endif %}">
+                    {% if table.is_available %}Available{% else %}Unavailable{% endif %}
+                </span>
+            </p>
+        </div>
+        <div class="col-md-6">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h5>{{ total_orders }}</h5>
+                    <small class="text-muted">Total Orders</small>
+                </div>
+                <div class="stat-item">
+                    <h5>${{ total_revenue|floatformat:2 }}</h5>
+                    <small class="text-muted">Total Revenue</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Recent Orders -->
+    <div class="row">
+        <div class="col-12">
+            <h5>Recent Orders</h5>
+            {% if recent_orders %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Total Amount</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td>{{ order.order_number }}</td>
+                                <td>{{ order.ordered_by.get_full_name|default:order.ordered_by.username }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if order.status == 'pending' %}bg-warning
+                                        {% elif order.status == 'confirmed' %}bg-info
+                                        {% elif order.status == 'preparing' %}bg-primary
+                                        {% elif order.status == 'ready' %}bg-success
+                                        {% elif order.status == 'served' %}bg-dark
+                                        {% elif order.status == 'cancelled' %}bg-danger
+                                        {% endif %}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>${{ order.total_amount|floatformat:2 }}</td>
+                                <td>{{ order.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">No orders found for this table.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.stat-item h5 {
+    margin-bottom: 5px;
+    color: #007bff;
+}
+</style>

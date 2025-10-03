@@ -1,326 +1,656 @@
 {% extends 'base.html' %}
 
-{% block title %}Kitchen Dashboard - Restaurant System{% endblock %}
+{% block title %}Kitchen Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
-    .order-card {
-        transition: transform 0.2s;
+    .dashboard-stats {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
     }
     
-    .order-card:hover {
-        transform: translateY(-2px);
+    .stat-card {
+        text-align: center;
+        padding: 1rem;
+        background: rgba(255,255,255,0.1);
+        border-radius: 0.25rem;
+        margin: 0.5rem;
     }
     
-    .status-badge {
-        font-size: 0.875rem;
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        display: block;
     }
     
-    .order-time {
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .refresh-timer {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 1.5rem;
+        font-size: 0.8rem;
+        z-index: 1000;
+    }
+    
+    .tab-content {
+        padding-top: 1rem;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+    }
+    
+    .order-timer {
+        font-weight: bold;
+        color: #dc3545;
+    }
+    
+    /* Table styling */
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .table td {
+        vertical-align: middle;
+        font-size: 0.9rem;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,0,0,0.075);
+    }
+    
+    .table-responsive {
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Priority row highlighting */
+    .table-danger {
+        background-color: #f8d7da !important;
+    }
+    
+    /* Badge styling */
+    .badge {
         font-size: 0.75rem;
     }
     
-    .filter-tabs .nav-link {
-        border-radius: 20px;
-        margin-right: 5px;
+    /* Button styling for table */
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
     }
     
-    .order-items {
-        max-height: 150px;
-        overflow-y: auto;
+    .btn-group-vertical .btn + .btn {
+        margin-top: 0.25rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .stat-card {
+            margin: 0.25rem;
+            padding: 0.75rem;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+        }
+        
+        .table-responsive {
+            font-size: 0.8rem;
+        }
+        
+        .btn-sm {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.7rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2><i class="bi bi-fire"></i> Kitchen Dashboard</h2>
-        <p class="text-muted mb-0">Manage incoming orders and update status</p>
+<div class="container-fluid mt-3" data-restaurant-view="true" data-owner-id="{{ request.user.owner.id|default:'default' }}">
+    <!-- Live Indicator -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Kitchen Dashboard</h1>
+        <span class="live-indicator">LIVE</span>
     </div>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-primary" onclick="location.reload()">
-            <i class="bi bi-arrow-clockwise"></i> Refresh
-        </button>
-    </div>
-</div>
 
-<!-- Status Filter Tabs -->
-<div class="filter-tabs mb-4">
-    <ul class="nav nav-pills">
-        <li class="nav-item">
-            <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" 
-               href="?status=pending">
-                <i class="bi bi-clock"></i> Pending 
-                <span class="badge bg-warning ms-1">{{ pending_count }}</span>
-            </a>
+    <!-- Dashboard Header -->
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-stats">
+                <h2 class="mb-3">
+                    <i class="fas fa-utensils"></i> Kitchen Dashboard
+                </h2>
+                <div class="row">
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <span class="stat-number">{{ pending_count }}</span>
+                            <span class="stat-label">Pending Orders</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <span class="stat-number">{{ confirmed_count }}</span>
+                            <span class="stat-label">Confirmed Orders</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <span class="stat-number">{{ preparing_count }}</span>
+                            <span class="stat-label">Preparing</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <span class="stat-number">{{ ready_count }}</span>
+                            <span class="stat-label">Ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-refresh timer display -->
+    <div class="refresh-timer" id="refreshTimer">
+        Auto-refresh in: <span id="countdown">30</span>s
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs" id="orderTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
+                <i class="fas fa-clock"></i> Pending ({{ pending_count }})
+            </button>
         </li>
-        <li class="nav-item">
-            <a class="nav-link {% if status_filter == 'confirmed' %}active{% endif %}" 
-               href="?status=confirmed">
-                <i class="bi bi-check-circle"></i> Confirmed 
-                <span class="badge bg-primary ms-1">{{ confirmed_count }}</span>
-            </a>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="confirmed-tab" data-bs-toggle="tab" data-bs-target="#confirmed" type="button" role="tab">
+                <i class="fas fa-check-circle"></i> Confirmed ({{ confirmed_count }})
+            </button>
         </li>
-        <li class="nav-item">
-            <a class="nav-link {% if status_filter == 'preparing' %}active{% endif %}" 
-               href="?status=preparing">
-                <i class="bi bi-hourglass-split"></i> Preparing 
-                <span class="badge bg-info ms-1">{{ preparing_count }}</span>
-            </a>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="preparing-tab" data-bs-toggle="tab" data-bs-target="#preparing" type="button" role="tab">
+                <i class="fas fa-fire"></i> Preparing ({{ preparing_count }})
+            </button>
         </li>
-        <li class="nav-item">
-            <a class="nav-link {% if status_filter == 'ready' %}active{% endif %}" 
-               href="?status=ready">
-                <i class="bi bi-check2-all"></i> Ready 
-                <span class="badge bg-success ms-1">{{ ready_count }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if status_filter == 'active' %}active{% endif %}" 
-               href="?status=active">
-                <i class="bi bi-list-ul"></i> Active Orders
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
-               href="?status=all">
-                <i class="bi bi-grid"></i> All Orders
-            </a>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="ready-tab" data-bs-toggle="tab" data-bs-target="#ready" type="button" role="tab">
+                <i class="fas fa-thumbs-up"></i> Ready ({{ ready_count }})
+            </button>
         </li>
     </ul>
-</div>
 
-<!-- Orders Grid -->
-<div class="row">
-    {% for order in orders %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card order-card shadow-sm h-100" id="order-{{ order.id }}">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>{{ order.order_number }}</strong><br>
-                        <small class="text-muted">Table {{ order.table_info.tbl_no }}</small>
-                    </div>
-                    <span class="badge status-badge bg-{% if order.status == 'pending' %}warning{% elif order.status == 'confirmed' %}primary{% elif order.status == 'preparing' %}info{% elif order.status == 'ready' %}success{% elif order.status == 'served' %}secondary{% else %}danger{% endif %}">
-                        {{ order.get_status_display }}
-                    </span>
+    <!-- Tab Content -->
+    <div class="tab-content" id="orderTabContent">
+        <!-- Pending Orders Tab -->
+        <div class="tab-pane fade show active" id="pending" role="tabpanel">
+            {% if pending_orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Order #</th>
+                                <th>Table</th>
+                                <th>Time</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Special Instructions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="orders-container">
+                            {% for order in pending_orders %}
+                            <tr class="order-card {% if order.is_priority %}table-danger{% endif %}" data-order-id="{{ order.id }}">
+                                <td>
+                                    <strong>#{{ order.order_number }}</strong>
+                                    <br><span class="order-status badge bg-warning text-dark">{{ order.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <i class="fas fa-table"></i> {{ order.table_info.tbl_no }}
+                                </td>
+                                <td>
+                                    <i class="fas fa-clock"></i> {{ order.created_at|date:"H:i" }}
+                                </td>
+                                <td>
+                                    <i class="fas fa-user"></i> {{ order.ordered_by.get_full_name|default:order.ordered_by.username }}
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled mb-0">
+                                        {% for item in order.order_items.all %}
+                                        <li>
+                                            <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
+                                            {% if item.special_notes %}
+                                                <br><small class="text-muted">Note: {{ item.special_notes }}</small>
+                                            {% endif %}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
+                                <td>
+                                    {% if order.special_instructions %}
+                                        <small class="text-info">
+                                            <i class="fas fa-sticky-note"></i> {{ order.special_instructions }}
+                                        </small>
+                                    {% else %}
+                                        <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group-vertical btn-group-sm">
+                                        <form method="post" action="{% url 'orders:update_order_status' order.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="confirmed">
+                                            <button type="submit" class="btn btn-success btn-sm mb-1">
+                                                <i class="fas fa-check"></i> Confirm
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{% url 'orders:update_order_status' order.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="cancelled">
+                                            <button type="submit" class="btn btn-danger btn-sm" 
+                                                    onclick="return confirm('Are you sure you want to cancel this order?')">
+                                                <i class="fas fa-times"></i> Cancel
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                
-                <div class="card-body">
-                    <div class="order-items mb-3">
-                        {% for item in order.order_items.all %}
-                            <div class="d-flex justify-content-between align-items-center py-1">
-                                <span class="small">{{ item.quantity }}x {{ item.product.name }}</span>
-                                <span class="small text-muted">${{ item.get_subtotal|floatformat:2 }}</span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                    
-                    {% if order.special_instructions %}
-                        <div class="alert alert-info py-2 mb-3">
-                            <small><i class="bi bi-info-circle"></i> {{ order.special_instructions }}</small>
-                        </div>
-                    {% endif %}
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <strong class="text-primary">Total: ${{ order.total_amount|floatformat:2 }}</strong>
-                        <small class="text-muted order-time">
-                            <i class="bi bi-clock"></i> {{ order.created_at|timesince }} ago
-                        </small>
-                    </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No pending orders at the moment.
                 </div>
-                
-                <div class="card-footer bg-transparent">
-                    <div class="d-flex gap-1 flex-wrap">
-                        {% if order.status == 'pending' %}
-                            <button class="btn btn-success btn-sm flex-fill" onclick="confirmOrder({{ order.id }})">
-                                <i class="bi bi-check-circle"></i> Confirm
-                            </button>
-                        {% elif order.status == 'confirmed' %}
-                            <button class="btn btn-info btn-sm flex-fill" onclick="updateStatus({{ order.id }}, 'preparing')">
-                                <i class="bi bi-hourglass-split"></i> Start Preparing
-                            </button>
-                        {% elif order.status == 'preparing' %}
-                            <button class="btn btn-success btn-sm flex-fill" onclick="updateStatus({{ order.id }}, 'ready')">
-                                <i class="bi bi-check2-all"></i> Mark Ready
-                            </button>
-                        {% elif order.status == 'ready' %}
-                            <button class="btn btn-secondary btn-sm flex-fill" onclick="updateStatus({{ order.id }}, 'served')">
-                                <i class="bi bi-check-all"></i> Mark Served
-                            </button>
-                        {% endif %}
-                        
-                        {% if order.status not in 'served,cancelled' %}
-                            <a href="{% url 'orders:cancel_order' order.id %}" class="btn btn-outline-danger btn-sm">
-                                <i class="bi bi-x-circle"></i>
-                            </a>
-                        {% endif %}
-                        
-                        <a href="{% url 'orders:kitchen_order_detail' order.id %}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-eye"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
+            {% endif %}
         </div>
-    {% empty %}
-        <div class="col-12">
-            <div class="text-center py-5">
-                <i class="bi bi-inbox display-1 text-muted"></i>
-                <h4 class="mt-3">No Orders Found</h4>
-                <p class="text-muted">
-                    {% if status_filter == 'pending' %}
-                        No pending orders at the moment.
-                    {% elif status_filter == 'confirmed' %}
-                        No confirmed orders to prepare.
-                    {% elif status_filter == 'preparing' %}
-                        No orders currently being prepared.
-                    {% elif status_filter == 'ready' %}
-                        No orders ready for serving.
-                    {% else %}
-                        No orders match the current filter.
-                    {% endif %}
-                </p>
-            </div>
+
+        <!-- Confirmed Orders Tab -->
+        <div class="tab-pane fade" id="confirmed" role="tabpanel">
+            {% if confirmed_orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-info">
+                            <tr>
+                                <th>Order #</th>
+                                <th>Table</th>
+                                <th>Confirmed Time</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Special Instructions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in confirmed_orders %}
+                            <tr class="{% if order.is_priority %}table-danger{% endif %}">
+                                <td>
+                                    <strong>#{{ order.order_number }}</strong>
+                                    <br><span class="badge bg-info">{{ order.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <i class="fas fa-table"></i> {{ order.table_info.tbl_no }}
+                                </td>
+                                <td>
+                                    <i class="fas fa-clock"></i> {{ order.updated_at|date:"H:i" }}
+                                </td>
+                                <td>
+                                    <i class="fas fa-user"></i> {{ order.ordered_by.get_full_name|default:order.ordered_by.username }}
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled mb-0">
+                                        {% for item in order.order_items.all %}
+                                        <li>
+                                            <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
+                                            {% if item.special_notes %}
+                                                <br><small class="text-muted">Note: {{ item.special_notes }}</small>
+                                            {% endif %}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
+                                <td>
+                                    {% if order.special_instructions %}
+                                        <small class="text-info">
+                                            <i class="fas fa-sticky-note"></i> {{ order.special_instructions }}
+                                        </small>
+                                    {% else %}
+                                        <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="post" action="{% url 'orders:update_order_status' order.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="preparing">
+                                        <button type="submit" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-fire"></i> Start Preparing
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No confirmed orders to prepare.
+                </div>
+            {% endif %}
         </div>
-    {% endfor %}
+
+        <!-- Preparing Orders Tab -->
+        <div class="tab-pane fade" id="preparing" role="tabpanel">
+            {% if preparing_orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Order #</th>
+                                <th>Table</th>
+                                <th>Started Time</th>
+                                <th>Timer</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Special Instructions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in preparing_orders %}
+                            <tr class="{% if order.is_priority %}table-danger{% endif %}">
+                                <td>
+                                    <strong>#{{ order.order_number }}</strong>
+                                    <br><span class="badge bg-warning text-dark">{{ order.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <i class="fas fa-table"></i> {{ order.table_info.tbl_no }}
+                                </td>
+                                <td>
+                                    <i class="fas fa-fire"></i> {{ order.updated_at|date:"H:i" }}
+                                </td>
+                                <td>
+                                    <span class="order-timer">
+                                        <i class="fas fa-stopwatch"></i> 
+                                        <span id="timer-{{ order.id }}" data-start-time="{{ order.updated_at|date:'c' }}">Calculating...</span>
+                                    </span>
+                                </td>
+                                <td>
+                                    <i class="fas fa-user"></i> {{ order.ordered_by.get_full_name|default:order.ordered_by.username }}
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled mb-0">
+                                        {% for item in order.order_items.all %}
+                                        <li>
+                                            <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
+                                            {% if item.special_notes %}
+                                                <br><small class="text-muted">Note: {{ item.special_notes }}</small>
+                                            {% endif %}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
+                                <td>
+                                    {% if order.special_instructions %}
+                                        <small class="text-info">
+                                            <i class="fas fa-sticky-note"></i> {{ order.special_instructions }}
+                                        </small>
+                                    {% else %}
+                                        <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="post" action="{% url 'orders:update_order_status' order.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="ready">
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="fas fa-check"></i> Mark Ready
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No orders currently being prepared.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Ready Orders Tab -->
+        <div class="tab-pane fade" id="ready" role="tabpanel">
+            {% if ready_orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-success">
+                            <tr>
+                                <th>Order #</th>
+                                <th>Table</th>
+                                <th>Ready Time</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Special Instructions</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in ready_orders %}
+                            <tr class="{% if order.is_priority %}table-danger{% endif %}">
+                                <td>
+                                    <strong>#{{ order.order_number }}</strong>
+                                    <br><span class="badge bg-success">{{ order.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <i class="fas fa-table"></i> {{ order.table_info.tbl_no }}
+                                </td>
+                                <td>
+                                    <i class="fas fa-check"></i> {{ order.updated_at|date:"H:i" }}
+                                </td>
+                                <td>
+                                    <i class="fas fa-user"></i> {{ order.ordered_by.get_full_name|default:order.ordered_by.username }}
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled mb-0">
+                                        {% for item in order.order_items.all %}
+                                        <li>
+                                            <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
+                                            {% if item.special_notes %}
+                                                <br><small class="text-muted">Note: {{ item.special_notes }}</small>
+                                            {% endif %}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
+                                <td>
+                                    {% if order.special_instructions %}
+                                        <small class="text-info">
+                                            <i class="fas fa-sticky-note"></i> {{ order.special_instructions }}
+                                        </small>
+                                    {% else %}
+                                        <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="alert alert-success p-2 text-center mb-0">
+                                        <i class="fas fa-bell"></i> Ready for pickup!
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No orders ready for pickup.
+                </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function confirmOrder(orderId) {
-    if (!confirm('Confirm this order?')) return;
+// Auto refresh functionality
+document.addEventListener('DOMContentLoaded', function() {
+    var pendingCount = parseInt('{{ pending_count|default:0 }}');
+    var confirmedCount = parseInt('{{ confirmed_count|default:0 }}');
     
-    fetch(`/orders/kitchen/confirm/${orderId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast(data.message, 'success');
-            // Update the order card
-            updateOrderCard(orderId, data.new_status, 'primary');
-        } else {
-            showToast(data.message, 'error');
-        }
-    })
-    .catch(error => {
-        showToast('An error occurred. Please try again.', 'error');
-    });
+    if (pendingCount > 0 || confirmedCount > 0) {
+        setTimeout(function() {
+            location.reload();
+        }, 30000);
+    }
+});
+
+// Countdown timer for auto-refresh
+let countdown = 30;
+const countdownElement = document.getElementById('countdown');
+const refreshTimerElement = document.getElementById('refreshTimer');
+
+function updateCountdown() {
+    if (countdownElement) {
+        countdownElement.textContent = countdown;
+    }
+    if (countdown <= 0) {
+        location.reload();
+    } else {
+        countdown--;
+        setTimeout(updateCountdown, 1000);
+    }
 }
 
-function updateStatus(orderId, newStatus) {
-    const statusMessages = {
-        'preparing': 'Start preparing this order?',
-        'ready': 'Mark this order as ready?',
-        'served': 'Mark this order as served?'
-    };
-    
-    if (!confirm(statusMessages[newStatus])) return;
-    
-    fetch(`/orders/kitchen/update-status/${orderId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast(data.message, 'success');
-            // Update the order card
-            const badgeClass = {
-                'confirmed': 'primary',
-                'preparing': 'info',
-                'ready': 'success',
-                'served': 'secondary'
-            }[newStatus];
-            updateOrderCard(orderId, data.new_status, badgeClass);
-        } else {
-            showToast(data.message, 'error');
-        }
-    })
-    .catch(error => {
-        showToast('An error occurred. Please try again.', 'error');
-    });
+// Start countdown if there are active orders
+var pendingCount = parseInt('{{ pending_count|default:0 }}');
+var confirmedCount = parseInt('{{ confirmed_count|default:0 }}');
+var preparingCount = parseInt('{{ preparing_count|default:0 }}');
+
+if (pendingCount > 0 || confirmedCount > 0 || preparingCount > 0) {
+    updateCountdown();
+} else {
+    if (refreshTimerElement) {
+        refreshTimerElement.style.display = 'none';
+    }
 }
 
-function updateOrderCard(orderId, newStatus, badgeClass) {
-    const orderCard = document.getElementById(`order-${orderId}`);
-    const statusBadge = orderCard.querySelector('.status-badge');
-    const cardFooter = orderCard.querySelector('.card-footer');
+// Order preparation timers
+document.addEventListener('DOMContentLoaded', function() {
+    // Find all timer elements and initialize them
+    var timerElements = document.querySelectorAll('[id^="timer-"]');
     
-    // Update status badge
-    statusBadge.className = `badge status-badge bg-${badgeClass}`;
-    statusBadge.textContent = newStatus;
-    
-    // Update action buttons based on new status
-    let buttonsHtml = '';
-    if (newStatus === 'Confirmed') {
-        buttonsHtml = `
-            <button class="btn btn-info btn-sm flex-fill" onclick="updateStatus(${orderId}, 'preparing')">
-                <i class="bi bi-hourglass-split"></i> Start Preparing
-            </button>
-        `;
-    } else if (newStatus === 'Preparing') {
-        buttonsHtml = `
-            <button class="btn btn-success btn-sm flex-fill" onclick="updateStatus(${orderId}, 'ready')">
-                <i class="bi bi-check2-all"></i> Mark Ready
-            </button>
-        `;
-    } else if (newStatus === 'Ready') {
-        buttonsHtml = `
-            <button class="btn btn-secondary btn-sm flex-fill" onclick="updateStatus(${orderId}, 'served')">
-                <i class="bi bi-check-all"></i> Mark Served
-            </button>
-        `;
+    timerElements.forEach(function(timerElement) {
+        var orderId = timerElement.id.replace('timer-', '');
+        var startTimeStr = timerElement.getAttribute('data-start-time');
+        
+        if (startTimeStr) {
+            var startTime = new Date(startTimeStr);
+            
+            function updateTimer() {
+                var now = new Date();
+                var diff = Math.floor((now - startTime) / 1000);
+                var minutes = Math.floor(diff / 60);
+                var seconds = diff % 60;
+                
+                timerElement.textContent = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+                
+                // Change color based on time
+                if (minutes >= 15) {
+                    timerElement.style.color = '#dc3545'; // Red
+                } else if (minutes >= 10) {
+                    timerElement.style.color = '#fd7e14'; // Orange
+                } else {
+                    timerElement.style.color = '#6c757d'; // Default
+                }
+            }
+            
+            updateTimer();
+            setInterval(updateTimer, 1000);
+        }
+    });
+});
+
+// Enhanced tab switching with URL hash
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for hash in URL and activate corresponding tab
+    if (window.location.hash) {
+        var hash = window.location.hash.substring(1);
+        var tabElement = document.getElementById(hash + '-tab');
+        if (tabElement) {
+            var tab = new bootstrap.Tab(tabElement);
+            tab.show();
+        }
     }
     
-    if (newStatus !== 'Served') {
-        buttonsHtml += `
-            <a href="/orders/kitchen/cancel/${orderId}/" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-x-circle"></i>
-            </a>
-        `;
-    }
-    
-    buttonsHtml += `
-        <a href="/orders/kitchen/order/${orderId}/" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-eye"></i>
-        </a>
-    `;
-    
-    cardFooter.innerHTML = `<div class="d-flex gap-1 flex-wrap">${buttonsHtml}</div>`;
-}
+    // Update URL hash when tab is clicked
+    var tabElements = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabElements.forEach(function(tabElement) {
+        tabElement.addEventListener('shown.bs.tab', function(e) {
+            var targetId = e.target.getAttribute('data-bs-target').substring(1);
+            window.location.hash = targetId;
+        });
+    });
+});
 
-function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-    toast.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.parentNode.removeChild(toast);
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+            case '1':
+                e.preventDefault();
+                var tab1 = document.getElementById('pending-tab');
+                if (tab1) tab1.click();
+                break;
+            case '2':
+                e.preventDefault();
+                var tab2 = document.getElementById('confirmed-tab');
+                if (tab2) tab2.click();
+                break;
+            case '3':
+                e.preventDefault();
+                var tab3 = document.getElementById('preparing-tab');
+                if (tab3) tab3.click();
+                break;
+            case '4':
+                e.preventDefault();
+                var tab4 = document.getElementById('ready-tab');
+                if (tab4) tab4.click();
+                break;
+            case 'r':
+                e.preventDefault();
+                location.reload();
+                break;
         }
-    }, 3000);
-}
+    }
+});
 
-// Auto-refresh every 30 seconds
-setInterval(() => {
-    location.reload();
-}, 30000);
+// Auto-focus on active orders
+document.addEventListener('DOMContentLoaded', function() {
+    // Scroll to first pending or confirmed order if exists
+    var firstActiveOrder = document.querySelector('.order-pending, .order-confirmed');
+    if (firstActiveOrder) {
+        firstActiveOrder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+});
 </script>
 {% endblock %}

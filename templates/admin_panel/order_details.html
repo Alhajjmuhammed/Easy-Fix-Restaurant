@@ -1,0 +1,119 @@
+<div class="order-details">
+    <div class="row">
+        <div class="col-md-6">
+            <h6 class="mb-3">Order Information</h6>
+            <table class="table table-sm">
+                <tr>
+                    <td><strong>Order Number:</strong></td>
+                    <td>#{{ order.order_number }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Status:</strong></td>
+                    <td>
+                        <span class="badge bg-{% if order.status == 'pending' %}warning{% elif order.status == 'confirmed' %}info{% elif order.status == 'preparing' %}primary{% elif order.status == 'ready' %}success{% elif order.status == 'served' %}success{% elif order.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                            {{ order.status|title }}
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Table:</strong></td>
+                    <td>{{ order.table_info.tbl_no }} (Capacity: {{ order.table_info.capacity }})</td>
+                </tr>
+                <tr>
+                    <td><strong>Customer:</strong></td>
+                    <td>{{ order.ordered_by.get_full_name|default:order.ordered_by.username }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Total Amount:</strong></td>
+                    <td><strong>${{ order.total_amount|floatformat:2 }}</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>Payment Status:</strong></td>
+                    <td>
+                        <span class="badge bg-{% if order.payment_status == 'paid' %}success{% elif order.payment_status == 'partial' %}warning{% else %}danger{% endif %}">
+                            {{ order.payment_status|title }}
+                        </span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="col-md-6">
+            <h6 class="mb-3">Timestamps</h6>
+            <table class="table table-sm">
+                <tr>
+                    <td><strong>Created:</strong></td>
+                    <td>{{ order.created_at|date:"M d, Y H:i" }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Updated:</strong></td>
+                    <td>{{ order.updated_at|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% if order.confirmed_by %}
+                <tr>
+                    <td><strong>Confirmed By:</strong></td>
+                    <td>{{ order.confirmed_by.get_full_name|default:order.confirmed_by.username }}</td>
+                </tr>
+                {% endif %}
+            </table>
+            
+            {% if order.special_instructions %}
+            <h6 class="mb-2 mt-3">Special Instructions</h6>
+            <div class="alert alert-info">
+                {{ order.special_instructions }}
+            </div>
+            {% endif %}
+            
+            {% if order.reason_if_cancelled %}
+            <h6 class="mb-2 mt-3">Cancellation Reason</h6>
+            <div class="alert alert-warning">
+                {{ order.reason_if_cancelled }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if order_items %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6 class="mb-3">Order Items</h6>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in order_items %}
+                        <tr>
+                            <td>
+                                {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="me-2" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px;">
+                                {% endif %}
+                                {{ item.product.name }}
+                                {% if item.special_instructions %}
+                                <br><small class="text-muted">{{ item.special_instructions }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.quantity }}</td>
+                            <td>${{ item.unit_price|floatformat:2 }}</td>
+                            <td><strong>${{ item.get_subtotal|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <th colspan="3">Total:</th>
+                            <th>${{ order.total_amount|floatformat:2 }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

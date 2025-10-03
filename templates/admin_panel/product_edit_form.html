@@ -1,0 +1,113 @@
+<form id="editProductForm" method="post" enctype="multipart/form-data" action="/admin-panel/products/{{ product.id }}/update/">
+    {% csrf_token %}
+    <div class="row g-4">
+        <!-- Basic Information -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0 fw-bold">Product Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label for="editProductName" class="form-label">Product Name *</label>
+                            <input type="text" class="form-control" id="editProductName" name="name" value="{{ product.name }}" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="editProductDescription" class="form-label">Description *</label>
+                            <textarea class="form-control" id="editProductDescription" name="description" rows="3" required>{{ product.description }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editProductMainCategory" class="form-label">Main Category *</label>
+                            <select class="form-select" id="editProductMainCategory" name="main_category" required>
+                                {% for category in main_categories %}
+                                <option value="{{ category.id }}" {% if category.id == product.main_category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editProductSubCategory" class="form-label">Sub Category *</label>
+                            <select class="form-select" id="editProductSubCategory" name="sub_category" required>
+                                {% for subcategory in subcategories %}
+                                <option value="{{ subcategory.id }}" {% if subcategory.id == product.sub_category.id %}selected{% endif %}>
+                                    {{ subcategory.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editProductPrice" class="form-label">Price ($) *</label>
+                            <input type="number" step="0.01" min="0.01" class="form-control" id="editProductPrice" name="price" value="{{ product.price }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editProductStock" class="form-label">Stock Quantity *</label>
+                            <input type="number" min="0" class="form-control" id="editProductStock" name="available_in_stock" value="{{ product.available_in_stock }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editProductPrepTime" class="form-label">Prep Time (min)</label>
+                            <input type="number" min="1" class="form-control" id="editProductPrepTime" name="preparation_time" value="{{ product.preparation_time }}">
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editProductAvailable" name="is_available" {% if product.is_available %}checked{% endif %}>
+                                <label class="form-check-label" for="editProductAvailable">
+                                    Product is available for ordering
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Image Upload -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0 fw-bold">Product Image</h6>
+                </div>
+                <div class="card-body">
+                    {% if product.image %}
+                        <div class="current-image mb-3">
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded">
+                            <div class="text-center mt-2">
+                                <small class="text-muted">Current Image</small>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="editProductImage" class="form-label">Upload New Image</label>
+                        <input type="file" class="form-control" id="editProductImage" name="image" accept="image/*">
+                        <div class="form-text">JPG, PNG, GIF (Max: 5MB)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Cancel
+        </button>
+        <button type="submit" class="btn btn-success">
+            <i class="fas fa-save me-2"></i>Update Product
+        </button>
+    </div>
+</form>
+
+<script>
+// Simple form submission with loading state
+document.getElementById('editProductForm').addEventListener('submit', function(e) {
+    const submitBtn = this.querySelector('button[type="submit"]');
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
+    
+    // Let the form submit naturally - no preventDefault()
+    // The backend will handle the redirect
+});
+</script>

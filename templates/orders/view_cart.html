@@ -2,49 +2,202 @@
 
 {% block title %}Cart - Restaurant System{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Mobile Cart Optimization */
+    @media (max-width: 768px) {
+        /* Header section mobile optimization */
+        .cart-header {
+            flex-direction: column !important;
+            gap: 1rem;
+            text-align: center;
+        }
+        
+        .cart-header h2 {
+            font-size: 1.5rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        .cart-header .btn {
+            font-size: 0.85rem !important;
+            padding: 0.5rem 1rem !important;
+        }
+        
+        /* Cart card width reduction */
+        .cart-card-mobile {
+            max-width: 95% !important;
+            margin: 0 auto !important;
+        }
+        
+        /* Cart item mobile styling */
+        .cart-item-mobile {
+            flex-direction: column !important;
+            padding: 1rem 0.75rem !important;
+            gap: 0.75rem;
+        }
+        
+        .cart-item-image {
+            width: 60px !important;
+            height: 60px !important;
+            align-self: center !important;
+        }
+        
+        .cart-item-details {
+            text-align: center !important;
+        }
+        
+        .cart-item-details h6 {
+            font-size: 1rem !important;
+            margin-bottom: 0.25rem !important;
+        }
+        
+        .cart-item-details p {
+            font-size: 0.8rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        .cart-item-controls {
+            justify-content: center !important;
+            gap: 1rem !important;
+            flex-wrap: wrap;
+            align-items: center !important;
+        }
+        
+        /* Improved quantity controls - wider and same height as remove button */
+        .cart-item-controls .input-group {
+            width: 140px !important; /* Increased from 100px */
+            flex-shrink: 0;
+        }
+        
+        .cart-item-controls .input-group .btn {
+            width: 42px !important; /* Wider buttons for better number display */
+            height: 38px !important; /* Match remove button height */
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1.1rem !important; /* Larger font for +/- */
+            font-weight: bold !important;
+            padding: 0 !important;
+        }
+        
+        .cart-item-controls .input-group .form-control {
+            height: 38px !important; /* Match button height */
+            font-size: 0.9rem !important;
+            font-weight: bold !important;
+            border-left: 0 !important;
+            border-right: 0 !important;
+        }
+        
+        .cart-item-controls .remove-item {
+            height: 38px !important; /* Same height as quantity controls */
+            font-size: 0.8rem !important;
+            padding: 0.4rem 0.8rem !important;
+            white-space: nowrap !important;
+        }
+        
+        .cart-item-total {
+            text-align: center !important;
+            font-size: 1.1rem !important;
+            font-weight: bold !important;
+            color: #28a745 !important;
+        }
+        
+        /* Order summary mobile */
+        .order-summary-mobile {
+            margin-top: 1rem !important;
+            max-width: 95% !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+        
+        .order-summary-mobile .card-body {
+            padding: 1rem !important;
+        }
+        
+        .order-summary-mobile .btn-lg {
+            font-size: 1rem !important;
+            padding: 0.75rem !important;
+        }
+        
+        /* Happy Hour badge mobile */
+        .happy-hour-badge-mobile {
+            font-size: 0.65rem !important;
+            padding: 0.2rem 0.4rem !important;
+        }
+        
+        /* Compact spacing for mobile */
+        .mobile-compact {
+            margin-bottom: 1rem !important;
+        }
+    }
+    
+    /* Tablet optimization */
+    @media (max-width: 992px) and (min-width: 769px) {
+        .cart-item-image {
+            width: 70px !important;
+            height: 70px !important;
+        }
+        
+        .cart-item-controls .input-group {
+            width: 110px !important;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 cart-header">
     <div>
         <h2><i class="bi bi-cart3"></i> Your Cart</h2>
         <p class="text-muted mb-0">Table {{ table_number }}</p>
     </div>
-    <a href="{% url 'orders:browse_menu' %}" class="btn btn-outline-primary">
+    <a href="{% url 'restaurant:menu' %}" class="btn btn-outline-primary">
         <i class="bi bi-arrow-left"></i> Continue Shopping
     </a>
 </div>
 
 <div class="row">
     <div class="col-md-8">
-        <div class="card">
+        <div class="card cart-card-mobile">
             <div class="card-body">
                 {% for item in cart_items %}
-                    <div class="d-flex align-items-center border-bottom py-3" id="cart-item-{{ item.product_id }}">
+                    <div class="d-flex align-items-center border-bottom py-3 cart-item-mobile" id="cart-item-{{ item.product_id }}">
                         {% if item.image %}
-                            <img src="{{ item.image }}" alt="{{ item.name }}" class="rounded me-3" style="width: 80px; height: 80px; object-fit: cover;">
+                            <img src="{{ item.image }}" alt="{{ item.name }}" class="rounded me-3 cart-item-image" style="width: 80px; height: 80px; object-fit: cover;">
                         {% else %}
-                            <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                            <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center cart-item-image" style="width: 80px; height: 80px;">
                                 <i class="bi bi-image text-muted"></i>
                             </div>
                         {% endif %}
                         
-                        <div class="flex-grow-1">
+                        <div class="flex-grow-1 cart-item-details">
                             <h6 class="mb-1">{{ item.name }}</h6>
-                            <p class="text-muted mb-2">${{ item.price|floatformat:2 }} each</p>
+                            {% if item.has_promotion %}
+                                <p class="text-muted mb-2">
+                                    <span class="text-decoration-line-through text-danger">${{ item.original_price|floatformat:2 }}</span>
+                                    <span class="text-success fw-bold">${{ item.price|floatformat:2 }}</span> each
+                                    <span class="badge bg-warning text-dark ms-1 happy-hour-badge-mobile">
+                                        <i class="bi bi-clock"></i> Happy Hour
+                                    </span>
+                                </p>
+                            {% else %}
+                                <p class="text-muted mb-2">${{ item.price|floatformat:2 }} each</p>
+                            {% endif %}
                             
-                            <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-3 cart-item-controls">
                                 <div class="input-group" style="width: 120px;">
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="updateQuantity({{ item.product_id }}, {{ item.quantity|add:'-1' }})">-</button>
+                                    <button class="btn btn-outline-secondary btn-sm qty-decrease" type="button" data-product-id="{{ item.product_id }}" data-current-qty="{{ item.quantity }}">-</button>
                                     <input type="number" class="form-control form-control-sm text-center" id="qty-{{ item.product_id }}" value="{{ item.quantity }}" min="1" readonly>
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="updateQuantity({{ item.product_id }}, {{ item.quantity|add:'1' }})">+</button>
+                                    <button class="btn btn-outline-secondary btn-sm qty-increase" type="button" data-product-id="{{ item.product_id }}" data-current-qty="{{ item.quantity }}">+</button>
                                 </div>
                                 
-                                <button class="btn btn-outline-danger btn-sm" onclick="removeFromCart({{ item.product_id }})">
+                                <button class="btn btn-outline-danger btn-sm remove-item" data-product-id="{{ item.product_id }}">
                                     <i class="bi bi-trash"></i> Remove
                                 </button>
                             </div>
                         </div>
                         
-                        <div class="text-end">
+                        <div class="text-end cart-item-total">
                             <h6 class="mb-0" id="item-total-{{ item.product_id }}">${{ item.total|floatformat:2 }}</h6>
                         </div>
                     </div>
@@ -54,7 +207,7 @@
     </div>
     
     <div class="col-md-4">
-        <div class="card">
+        <div class="card order-summary-mobile">
             <div class="card-header">
                 <h5 class="mb-0">Order Summary</h5>
             </div>
@@ -63,19 +216,19 @@
                     <span>Subtotal:</span>
                     <span id="cart-total">${{ cart_total|floatformat:2 }}</span>
                 </div>
-                
+
                 <div class="d-flex justify-content-between mb-3">
-                    <span>Tax (8%):</span>
-                    <span>${{ cart_total|floatformat:2|mul:0.08|floatformat:2 }}</span>
+                    <span>Tax ({{ tax_percentage }}%):</span>
+                    <span>${{ tax_amount|floatformat:2 }}</span>
                 </div>
-                
+
                 <hr>
-                
+
                 <div class="d-flex justify-content-between mb-3">
                     <strong>Total:</strong>
-                    <strong id="final-total">${{ cart_total|floatformat:2|mul:1.08|floatformat:2 }}</strong>
+                    <strong id="final-total">${{ final_total|floatformat:2 }}</strong>
                 </div>
-                
+
                 <div class="d-grid">
                     {% if user.is_authenticated %}
                         <a href="{% url 'orders:place_order' %}" class="btn btn-primary btn-lg">
@@ -114,6 +267,12 @@ function updateQuantity(productId, newQuantity) {
         if (data.success) {
             // Update quantity input
             document.getElementById(`qty-${productId}`).value = newQuantity;
+            
+            // Update data attributes for buttons
+            const increaseBtn = document.querySelector(`.qty-increase[data-product-id="${productId}"]`);
+            const decreaseBtn = document.querySelector(`.qty-decrease[data-product-id="${productId}"]`);
+            if (increaseBtn) increaseBtn.dataset.currentQty = newQuantity;
+            if (decreaseBtn) decreaseBtn.dataset.currentQty = newQuantity;
             
             // Update item total
             document.getElementById(`item-total-${productId}`).textContent = `$${data.item_total.toFixed(2)}`;
@@ -157,7 +316,7 @@ function removeFromCart(productId) {
             
             // If cart is empty, redirect to menu
             if (data.cart_count === 0) {
-                window.location.href = '{% url "orders:browse_menu" %}';
+                window.location.href = '{% url "restaurant:menu" %}';
             }
             
             showToast(data.message, 'success');
@@ -187,5 +346,36 @@ function showToast(message, type) {
         }
     }, 3000);
 }
+
+// Add event listeners when document is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle quantity increase buttons
+    document.querySelectorAll('.qty-increase').forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = parseInt(this.dataset.productId);
+            const currentQty = parseInt(this.dataset.currentQty);
+            updateQuantity(productId, currentQty + 1);
+        });
+    });
+
+    // Handle quantity decrease buttons
+    document.querySelectorAll('.qty-decrease').forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = parseInt(this.dataset.productId);
+            const currentQty = parseInt(this.dataset.currentQty);
+            if (currentQty > 1) {
+                updateQuantity(productId, currentQty - 1);
+            }
+        });
+    });
+
+    // Handle remove item buttons
+    document.querySelectorAll('.remove-item').forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = parseInt(this.dataset.productId);
+            removeFromCart(productId);
+        });
+    });
+});
 </script>
 {% endblock %}

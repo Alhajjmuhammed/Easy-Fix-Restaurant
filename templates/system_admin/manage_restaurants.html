@@ -1,0 +1,1273 @@
+{% extends 'system_admin/base.html' %}
+
+{% block title %}Manage Restaurants - System Administration{% endblock %}
+{% block page_title %}Manage Restaurants{% endblock %}
+{% block page_subtitle %}Restaurant Owners and Operations{% endblock %}
+
+{% block content %}
+<!-- Display Django Messages -->
+{% if messages %}
+    <div class="container-fluid px-0 mb-3">
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% else %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-store me-2"></i>
+                    All Restaurants ({{ total_restaurants }})
+                </h5>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRestaurantModal">
+                    <i class="fas fa-plus me-1"></i> Add New Restaurant
+                </button>
+            </div>
+            <div class="card-body">
+                {% if restaurants %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Restaurant Info</th>
+                                    <th>Owner Details</th>
+                                    <th>Contact & Location</th>
+                                    <th>Business Info</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for restaurant in restaurants %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="restaurant-avatar me-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-store text-white"></i>
+                                            </div>
+                                            <div>
+                                                {% if restaurant.restaurant_name %}
+                                                    <strong class="text-primary">{{ restaurant.restaurant_name }}</strong>
+                                                    {% if restaurant.restaurant_description %}
+                                                        {% with cuisine=restaurant.restaurant_description|cut:"Cuisine Type: "|cut:"Opening Hours:"|cut:"Seating Capacity:" %}
+                                                            {% if "Cuisine Type:" in restaurant.restaurant_description %}
+                                                                <br><small class="text-success"><i class="fas fa-utensils me-1"></i>
+                                                                {% for line in restaurant.restaurant_description.splitlines %}
+                                                                    {% if "Cuisine Type:" in line %}
+                                                                        {{ line|cut:"Cuisine Type: " }}
+                                                                    {% endif %}
+                                                                {% endfor %}</small>
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">{{ restaurant.first_name }} {{ restaurant.last_name }}</span>
+                                                    <br><small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>No restaurant name</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ restaurant.get_full_name|default:restaurant.username }}</strong>
+                                            <br><small class="text-muted"><i class="fas fa-user me-1"></i>@{{ restaurant.username }}</small>
+                                            <br><small class="text-info"><i class="fas fa-crown me-1"></i>Owner</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if restaurant.email %}
+                                            <div class="mb-1"><i class="fas fa-envelope text-primary me-1"></i> {{ restaurant.email }}</div>
+                                        {% endif %}
+                                        {% if restaurant.phone_number %}
+                                            <div class="mb-1"><i class="fas fa-phone text-success me-1"></i> {{ restaurant.phone_number }}</div>
+                                        {% endif %}
+                                        {% if restaurant.address %}
+                                            <div><i class="fas fa-map-marker-alt text-danger me-1"></i> 
+                                            <small class="text-muted">{{ restaurant.address|truncatechars:50 }}</small></div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            {% if restaurant.restaurant_description %}
+                                                {% for line in restaurant.restaurant_description.splitlines %}
+                                                    {% if "Opening Hours:" in line %}
+                                                        <div class="mb-1"><i class="fas fa-clock text-warning me-1"></i> {{ line|cut:"Opening Hours: " }}</div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endif %}
+                                            <div><i class="fas fa-calendar me-1"></i> <small class="text-muted">Joined {{ restaurant.date_joined|date:"M d, Y" }}</small></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if restaurant.is_active %}
+                                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group-vertical d-grid gap-1" role="group">
+                                            <button class="btn btn-sm btn-outline-primary view-restaurant" 
+                                                    data-restaurant-id="{{ restaurant.id }}" title="View Details">
+                                                <i class="fas fa-eye me-1"></i>View
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-warning edit-restaurant" 
+                                                    data-restaurant-id="{{ restaurant.id }}" title="Edit Restaurant">
+                                                <i class="fas fa-edit me-1"></i>Edit
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger delete-restaurant" 
+                                                    data-restaurant-id="{{ restaurant.id }}" 
+                                                    data-restaurant-name="{{ restaurant.restaurant_name|default:restaurant.username }}" title="Delete Restaurant">
+                                                <i class="fas fa-trash me-1"></i>Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Restaurants Found</h4>
+                        <p class="text-muted">Start by creating the first restaurant</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRestaurantModal">
+                            <i class="fas fa-plus me-1"></i> Add New Restaurant
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Restaurant Modal -->
+<div class="modal fade" id="createRestaurantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="d-flex align-items-center">
+                    <div class="modal-icon me-3">
+                        <i class="fas fa-store-alt text-white fs-3"></i>
+                    </div>
+                    <div>
+                        <h4 class="modal-title text-white mb-0">Create New Restaurant</h4>
+                        <small class="text-white-50">Add a new restaurant and owner account</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'system_admin:create_restaurant' %}" id="createRestaurantForm" novalidate>
+                {% csrf_token %}
+                <div class="modal-body">
+                    <!-- Progress Steps -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="progress mb-3" style="height: 3px;">
+                                <div class="progress-bar bg-info" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span><i class="fas fa-store me-1"></i> Restaurant Info</span>
+                                <span><i class="fas fa-user-tie me-1"></i> Owner Details</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Restaurant Information Section -->
+                    <div class="section-header mb-4">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="section-title mb-1">
+                                    <i class="fas fa-store text-primary me-2"></i>
+                                    Restaurant Information
+                                </h5>
+                                <p class="text-muted small mb-0">Basic information about the restaurant</p>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="restaurant_name" class="form-label fw-semibold">
+                                    <i class="fas fa-utensils text-warning me-1"></i>
+                                    Restaurant Name *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="restaurant_name" id="restaurant_name" 
+                                       placeholder="e.g., The Golden Fork" required>
+                                <div class="invalid-feedback">
+                                    Please provide a restaurant name.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cuisine_type" class="form-label fw-semibold">
+                                    <i class="fas fa-pepper-hot text-danger me-1"></i>
+                                    Cuisine Type
+                                </label>
+                                <select class="form-select form-control-lg" name="cuisine_type" id="cuisine_type">
+                                    <option value="">Select cuisine type</option>
+                                    <option value="italian">Italian</option>
+                                    <option value="chinese">Chinese</option>
+                                    <option value="indian">Indian</option>
+                                    <option value="mexican">Mexican</option>
+                                    <option value="american">American</option>
+                                    <option value="french">French</option>
+                                    <option value="japanese">Japanese</option>
+                                    <option value="mediterranean">Mediterranean</option>
+                                    <option value="thai">Thai</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Restaurant Description - Full width -->
+                    <div class="mb-4">
+                        <label for="restaurant_description" class="form-label fw-semibold">
+                            <i class="fas fa-file-alt text-info me-1"></i>
+                            Restaurant Description
+                        </label>
+                        <textarea class="form-control" 
+                                 name="restaurant_description" id="restaurant_description" rows="3"
+                                 placeholder="Detailed description of your restaurant, cuisine, ambiance, specialties, etc."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="restaurant_phone" class="form-label fw-semibold">
+                                    <i class="fas fa-phone text-success me-1"></i>
+                                    Restaurant Phone *
+                                </label>
+                                <input type="tel" class="form-control form-control-lg" 
+                                       name="phone_number" id="restaurant_phone" 
+                                       placeholder="+1 (555) 123-4567" required>
+                                <div class="invalid-feedback">
+                                    Please provide a restaurant phone number.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="opening_hours" class="form-label fw-semibold">
+                                    <i class="fas fa-clock text-success me-1"></i>
+                                    Opening Hours
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="opening_hours" id="opening_hours" 
+                                       placeholder="e.g., Mon-Sun: 9:00 AM - 10:00 PM">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="address" class="form-label fw-semibold">
+                            <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                            Restaurant Address *
+                        </label>
+                        <textarea class="form-control" name="address" id="address" rows="3" 
+                                  placeholder="Complete address with city, state, and postal code" required></textarea>
+                        <div class="invalid-feedback">
+                            Please provide the restaurant address.
+                        </div>
+                    </div>
+
+                    <!-- Owner Information Section -->
+                    <div class="section-header mb-4 mt-5">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="section-title mb-1">
+                                    <i class="fas fa-user-tie text-primary me-2"></i>
+                                    Owner Information
+                                </h5>
+                                <p class="text-muted small mb-0">Details about the restaurant owner and login account</p>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="username" class="form-label fw-semibold">
+                                    <i class="fas fa-user text-primary me-1"></i>
+                                    Username *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="username" id="username" 
+                                       placeholder="Choose a unique username" required>
+                                <div class="form-text">This will be used for login</div>
+                                <div class="invalid-feedback">
+                                    Please choose a username.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label fw-semibold">
+                                    <i class="fas fa-envelope text-warning me-1"></i>
+                                    Email Address *
+                                </label>
+                                <input type="email" class="form-control form-control-lg" 
+                                       name="email" id="email" 
+                                       placeholder="owner@restaurant.com" required>
+                                <div class="invalid-feedback">
+                                    Please provide a valid email address.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="first_name" class="form-label fw-semibold">
+                                    <i class="fas fa-user-circle text-info me-1"></i>
+                                    First Name *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="first_name" id="first_name" 
+                                       placeholder="John" required>
+                                <div class="invalid-feedback">
+                                    Please provide the first name.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="last_name" class="form-label fw-semibold">
+                                    <i class="fas fa-user-circle text-info me-1"></i>
+                                    Last Name *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="last_name" id="last_name" 
+                                       placeholder="Doe" required>
+                                <div class="invalid-feedback">
+                                    Please provide the last name.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="password" class="form-label fw-semibold">
+                                    <i class="fas fa-lock text-danger me-1"></i>
+                                    Password *
+                                </label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control form-control-lg" 
+                                           name="password" id="password" 
+                                           placeholder="Create a strong password" required>
+                                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">Minimum 8 characters recommended</div>
+                                <div class="invalid-feedback">
+                                    Please provide a password.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label fw-semibold">
+                                    <i class="fas fa-lock text-danger me-1"></i>
+                                    Confirm Password *
+                                </label>
+                                <input type="password" class="form-control form-control-lg" 
+                                       name="confirm_password" id="confirm_password" 
+                                       placeholder="Confirm your password" required>
+                                <div class="invalid-feedback">
+                                    Passwords do not match.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Note:</strong> After creating the restaurant, the owner will be able to:
+                                <ul class="mb-0 mt-2">
+                                    <li>Manage restaurant menu items and categories</li>
+                                    <li>Set up table information</li>
+                                    <li>Add kitchen and customer care staff</li>
+                                    <li>Monitor orders and customer activity</li>
+                                    <li>Update restaurant settings and information</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 bg-light">
+                    <button type="button" class="btn btn-lg btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-lg btn-primary" id="submitBtn">
+                        <i class="fas fa-plus me-2"></i>Create Restaurant
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Restaurant Details Modal -->
+<div class="modal fade" id="restaurantDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Restaurant Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="restaurantDetailsBody">
+                <!-- Details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Close
+                </button>
+                <button type="button" class="btn btn-warning" id="editFromDetailsBtn">
+                    <i class="fas fa-edit me-2"></i>Edit Restaurant
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Restaurant Modal -->
+<div class="modal fade" id="editRestaurantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Edit Restaurant
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="editRestaurantForm" novalidate>
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="editRestaurantId" name="restaurant_id">
+                    
+                    <!-- Progress Steps -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="progress mb-3" style="height: 3px;">
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span><i class="fas fa-store me-1"></i> Restaurant Info</span>
+                                <span><i class="fas fa-user-tie me-1"></i> Owner Details</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Restaurant Information Section -->
+                    <div class="section-header mb-4">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="section-title mb-1">
+                                    <i class="fas fa-store text-primary me-2"></i>
+                                    Restaurant Information
+                                </h5>
+                                <p class="text-muted small mb-0">Basic information about the restaurant</p>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_restaurant_name" class="form-label fw-semibold">
+                                    <i class="fas fa-utensils text-warning me-1"></i>
+                                    Restaurant Name *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="restaurant_name" id="edit_restaurant_name" 
+                                       placeholder="e.g., The Golden Fork" required>
+                                <div class="invalid-feedback">
+                                    Please provide a restaurant name.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_cuisine_type" class="form-label fw-semibold">
+                                    <i class="fas fa-pepper-hot text-danger me-1"></i>
+                                    Cuisine Type
+                                </label>
+                                <select class="form-select form-control-lg" name="cuisine_type" id="edit_cuisine_type">
+                                    <option value="">Select cuisine type</option>
+                                    <option value="italian">Italian</option>
+                                    <option value="chinese">Chinese</option>
+                                    <option value="indian">Indian</option>
+                                    <option value="mexican">Mexican</option>
+                                    <option value="american">American</option>
+                                    <option value="french">French</option>
+                                    <option value="japanese">Japanese</option>
+                                    <option value="mediterranean">Mediterranean</option>
+                                    <option value="thai">Thai</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Restaurant Description - Full width -->
+                    <div class="mb-4">
+                        <label for="edit_restaurant_description" class="form-label fw-semibold">
+                            <i class="fas fa-file-alt text-info me-1"></i>
+                            Restaurant Description
+                        </label>
+                        <textarea class="form-control" 
+                                 name="restaurant_description" id="edit_restaurant_description" rows="3"
+                                 placeholder="Detailed description of your restaurant, cuisine, ambiance, specialties, etc."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_phone_number" class="form-label fw-semibold">
+                                    <i class="fas fa-phone text-success me-1"></i>
+                                    Restaurant Phone *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="phone_number" id="edit_phone_number" 
+                                       placeholder="+1 (555) 123-4567" required>
+                                <div class="invalid-feedback">
+                                    Please provide a phone number.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_opening_hours" class="form-label fw-semibold">
+                                    <i class="fas fa-clock text-success me-1"></i>
+                                    Opening Hours
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="opening_hours" id="edit_opening_hours" 
+                                       placeholder="e.g., Mon-Sun: 9:00 AM - 10:00 PM">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="edit_address" class="form-label fw-semibold">
+                            <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                            Restaurant Address *
+                        </label>
+                        <textarea class="form-control" name="address" id="edit_address" rows="3" 
+                                  placeholder="Complete address with city, state, and postal code" required></textarea>
+                        <div class="invalid-feedback">
+                            Please provide the restaurant address.
+                        </div>
+                    </div>
+
+                    <!-- Owner Information Section -->
+                    <div class="section-header mb-4">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="section-title mb-1">
+                                    <i class="fas fa-user-tie text-primary me-2"></i>
+                                    Owner Information
+                                </h5>
+                                <p class="text-muted small mb-0">Details about the restaurant owner and login account</p>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_username" class="form-label fw-semibold">
+                                    <i class="fas fa-user text-primary me-1"></i>
+                                    Username *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="username" id="edit_username" 
+                                       placeholder="Choose a unique username" required>
+                                <div class="form-text">This will be used for login</div>
+                                <div class="invalid-feedback">
+                                    Please choose a username.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_email" class="form-label fw-semibold">
+                                    <i class="fas fa-envelope text-warning me-1"></i>
+                                    Email Address *
+                                </label>
+                                <input type="email" class="form-control form-control-lg" 
+                                       name="email" id="edit_email" 
+                                       placeholder="owner@restaurant.com" required>
+                                <div class="invalid-feedback">
+                                    Please provide a valid email address.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_first_name" class="form-label fw-semibold">
+                                    <i class="fas fa-user-circle text-info me-1"></i>
+                                    First Name *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="first_name" id="edit_first_name" 
+                                       placeholder="John" required>
+                                <div class="invalid-feedback">
+                                    Please provide the first name.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_last_name" class="form-label fw-semibold">
+                                    <i class="fas fa-user-circle text-info me-1"></i>
+                                    Last Name *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" 
+                                       name="last_name" id="edit_last_name" 
+                                       placeholder="Doe" required>
+                                <div class="invalid-feedback">
+                                    Please provide the last name.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_password" class="form-label fw-semibold">
+                                    <i class="fas fa-lock text-danger me-1"></i>
+                                    New Password
+                                </label>
+                                <input type="password" class="form-control form-control-lg" 
+                                       name="password" id="edit_password" 
+                                       placeholder="Leave blank to keep current password">
+                                <div class="form-text">Minimum 8 characters recommended</div>
+                                <div class="invalid-feedback">
+                                    Please provide a password.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_confirm_password" class="form-label fw-semibold">
+                                    <i class="fas fa-lock text-danger me-1"></i>
+                                    Confirm New Password
+                                </label>
+                                <input type="password" class="form-control form-control-lg" 
+                                       name="confirm_password" id="edit_confirm_password" 
+                                       placeholder="Confirm your new password">
+                                <div class="invalid-feedback">
+                                    Passwords must match.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-warning" id="saveRestaurantBtn">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the restaurant <strong id="restaurantNameToDelete"></strong>?</p>
+                <div class="alert alert-danger">
+                    <strong>Warning:</strong> This will permanently delete:
+                    <ul>
+                        <li>All restaurant data (categories, products, tables)</li>
+                        <li>All orders and order history</li>
+                        <li>All staff members belonging to this restaurant</li>
+                        <li>The restaurant owner account</li>
+                    </ul>
+                    <strong>This action cannot be undone!</strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" id="deleteForm" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete Restaurant</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // View restaurant details
+    document.querySelectorAll('.view-restaurant').forEach(button => {
+        button.addEventListener('click', function() {
+            const restaurantId = this.getAttribute('data-restaurant-id');
+            viewRestaurantDetails(restaurantId);
+        });
+    });
+    
+    // Edit restaurant
+    document.querySelectorAll('.edit-restaurant').forEach(button => {
+        button.addEventListener('click', function() {
+            const restaurantId = this.getAttribute('data-restaurant-id');
+            editRestaurant(restaurantId);
+        });
+    });
+    
+    // Delete restaurant
+    document.querySelectorAll('.delete-restaurant').forEach(button => {
+        button.addEventListener('click', function() {
+            const restaurantId = this.getAttribute('data-restaurant-id');
+            const restaurantName = this.getAttribute('data-restaurant-name');
+            confirmDelete(restaurantName, restaurantId);
+        });
+    });
+
+    // Enhanced form functionality
+    initializeCreateRestaurantForm();
+});
+
+function initializeCreateRestaurantForm() {
+    const form = document.getElementById('createRestaurantForm');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const togglePasswordBtn = document.getElementById('togglePassword');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Toggle password visibility
+    togglePasswordBtn.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+
+    // Real-time password confirmation validation
+    function validatePasswords() {
+        if (confirmPasswordInput.value && passwordInput.value !== confirmPasswordInput.value) {
+            confirmPasswordInput.setCustomValidity('Passwords do not match');
+            confirmPasswordInput.classList.add('is-invalid');
+            confirmPasswordInput.classList.remove('is-valid');
+        } else if (confirmPasswordInput.value) {
+            confirmPasswordInput.setCustomValidity('');
+            confirmPasswordInput.classList.remove('is-invalid');
+            confirmPasswordInput.classList.add('is-valid');
+        }
+    }
+
+    passwordInput.addEventListener('input', validatePasswords);
+    confirmPasswordInput.addEventListener('input', validatePasswords);
+
+    // Form validation and submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        console.log('Form submission started');
+        
+        // Remove existing validation classes
+        form.querySelectorAll('.form-control').forEach(input => {
+            input.classList.remove('is-invalid', 'is-valid');
+        });
+
+        let isValid = true;
+
+        // Validate required fields
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+                console.log('Required field missing:', field.name);
+            } else {
+                field.classList.add('is-valid');
+            }
+        });
+
+        // Validate email format
+        const emailField = document.getElementById('email');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailField.value && !emailRegex.test(emailField.value)) {
+            emailField.classList.add('is-invalid');
+            isValid = false;
+            console.log('Invalid email format');
+        }
+
+        // Validate password confirmation
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            confirmPasswordInput.classList.add('is-invalid');
+            isValid = false;
+            console.log('Password confirmation mismatch');
+        }
+
+        // Validate username format (no spaces, special characters)
+        const usernameField = document.getElementById('username');
+        const usernameRegex = /^[a-zA-Z0-9_]+$/;
+        if (usernameField.value && !usernameRegex.test(usernameField.value)) {
+            usernameField.classList.add('is-invalid');
+            usernameField.nextElementSibling.textContent = 'Username can only contain letters, numbers, and underscores';
+            isValid = false;
+            console.log('Invalid username format');
+        }
+
+        console.log('Form validation result:', isValid);
+
+        if (isValid) {
+            // Show loading state
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating...';
+            submitBtn.disabled = true;
+
+            console.log('Submitting form traditionally...');
+            
+            // Use traditional form submission instead of fetch API
+            // Remove the event listener to allow normal submission
+            form.removeEventListener('submit', arguments.callee);
+            form.submit();
+        } else {
+            // Show error message
+            showMessage('Please correct the highlighted fields', 'error');
+        }
+    });
+
+    // Auto-generate username from restaurant name
+    const restaurantNameField = document.getElementById('restaurant_name');
+    const usernameField = document.getElementById('username');
+    
+    restaurantNameField.addEventListener('input', function() {
+        if (!usernameField.value) {
+            const suggestedUsername = this.value
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_|_$/g, '');
+            usernameField.value = suggestedUsername;
+        }
+    });
+
+    // Auto-format phone number
+    const phoneField = document.getElementById('restaurant_phone');
+    phoneField.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, '');
+        if (value.length >= 10) {
+            value = value.substring(0, 10);
+            this.value = `(${value.substring(0, 3)}) ${value.substring(3, 6)}-${value.substring(6)}`;
+        } else {
+            this.value = value;
+        }
+    });
+}
+
+function viewRestaurantDetails(restaurantId) {
+    const modal = new bootstrap.Modal(document.getElementById('restaurantDetailsModal'));
+    const detailsBody = document.getElementById('restaurantDetailsBody');
+    
+    // Show loading
+    detailsBody.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading restaurant details...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Fetch restaurant details
+    fetch(`{% url 'system_admin:restaurant_details' 0 %}`.replace('0', restaurantId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            detailsBody.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-store me-2"></i>Restaurant Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <strong class="text-primary">${data.restaurant_name}</strong>
+                                    ${data.cuisine_type ? `<br><small class="text-success"><i class="fas fa-utensils me-1"></i>${data.cuisine_type}</small>` : ''}
+                                </div>
+                                ${data.restaurant_description ? `
+                                    <div class="mb-3">
+                                        <label class="fw-semibold text-muted small">DESCRIPTION</label>
+                                        <p class="small">${data.restaurant_description.split('\n')[0]}</p>
+                                    </div>
+                                ` : ''}
+                                ${data.opening_hours ? `
+                                    <div class="mb-3">
+                                        <label class="fw-semibold text-muted small">OPENING HOURS</label>
+                                        <p class="small"><i class="fas fa-clock text-warning me-1"></i>${data.opening_hours}</p>
+                                    </div>
+                                ` : ''}
+                                <div class="mb-3">
+                                    <label class="fw-semibold text-muted small">ADDRESS</label>
+                                    <p class="small"><i class="fas fa-map-marker-alt text-danger me-1"></i>${data.address || 'Not provided'}</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-semibold text-muted small">STATUS</label>
+                                    <br><span class="badge ${data.is_active ? 'bg-success' : 'bg-danger'}">
+                                        <i class="fas fa-${data.is_active ? 'check' : 'times'} me-1"></i>
+                                        ${data.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="fas fa-user-tie me-2"></i>Owner Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="fw-semibold text-muted small">FULL NAME</label>
+                                    <p><strong>${data.first_name} ${data.last_name}</strong></p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-semibold text-muted small">USERNAME</label>
+                                    <p><i class="fas fa-user text-primary me-1"></i>@${data.username}</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-semibold text-muted small">EMAIL</label>
+                                    <p><i class="fas fa-envelope text-warning me-1"></i>${data.email}</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-semibold text-muted small">PHONE</label>
+                                    <p><i class="fas fa-phone text-success me-1"></i>${data.phone_number || 'Not provided'}</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-semibold text-muted small">JOINED</label>
+                                    <p><i class="fas fa-calendar text-info me-1"></i>${data.date_joined}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Restaurant Statistics</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col">
+                                        <h4 class="text-primary">${data.stats.categories}</h4>
+                                        <small class="text-muted">Categories</small>
+                                    </div>
+                                    <div class="col">
+                                        <h4 class="text-warning">${data.stats.products}</h4>
+                                        <small class="text-muted">Products</small>
+                                    </div>
+                                    <div class="col">
+                                        <h4 class="text-info">${data.stats.tables}</h4>
+                                        <small class="text-muted">Tables</small>
+                                    </div>
+                                    <div class="col">
+                                        <h4 class="text-success">${data.stats.orders}</h4>
+                                        <small class="text-muted">Orders</small>
+                                    </div>
+                                    <div class="col">
+                                        <h4 class="text-danger">${data.stats.staff}</h4>
+                                        <small class="text-muted">Staff</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Set up edit button functionality
+            document.getElementById('editFromDetailsBtn').onclick = function() {
+                modal.hide();
+                editRestaurant(restaurantId);
+            };
+        })
+        .catch(error => {
+            detailsBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error loading restaurant details: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function editRestaurant(restaurantId) {
+    const modal = new bootstrap.Modal(document.getElementById('editRestaurantModal'));
+    
+    // First get the restaurant details
+    fetch(`{% url 'system_admin:restaurant_details' 0 %}`.replace('0', restaurantId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Populate the edit form with all fields to match add form
+            document.getElementById('editRestaurantId').value = data.id;
+            
+            // Restaurant Information
+            document.getElementById('edit_restaurant_name').value = data.restaurant_name || '';
+            document.getElementById('edit_restaurant_description').value = data.restaurant_description ? data.restaurant_description.split('\n\nCuisine Type:')[0] : '';
+            document.getElementById('edit_phone_number').value = data.phone_number || '';
+            document.getElementById('edit_cuisine_type').value = data.cuisine_type ? data.cuisine_type.toLowerCase() : '';
+            document.getElementById('edit_address').value = data.address || '';
+            
+            // Owner Information  
+            document.getElementById('edit_username').value = data.username || '';
+            document.getElementById('edit_email').value = data.email || '';
+            document.getElementById('edit_first_name').value = data.first_name || '';
+            document.getElementById('edit_last_name').value = data.last_name || '';
+            
+            // Password fields (leave empty - user can optionally change)
+            document.getElementById('edit_password').value = '';
+            document.getElementById('edit_confirm_password').value = '';
+            
+            // Additional Settings
+            document.getElementById('edit_opening_hours').value = data.opening_hours || '';
+            
+            modal.show();
+        })
+        .catch(error => {
+            showMessage(`Error loading restaurant data: ${error.message}`, 'error');
+        });
+}
+
+// Handle edit form submission
+document.getElementById('editRestaurantForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const restaurantId = document.getElementById('editRestaurantId').value;
+    const saveBtn = document.getElementById('saveRestaurantBtn');
+    
+    // Remove existing validation classes
+    form.querySelectorAll('.form-control').forEach(input => {
+        input.classList.remove('is-invalid', 'is-valid');
+    });
+
+    let isValid = true;
+
+    // Validate required fields
+    const requiredFields = form.querySelectorAll('[required]');
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            field.classList.add('is-valid');
+        }
+    });
+
+    // Validate email format
+    const emailField = document.getElementById('edit_email');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (emailField.value && !emailRegex.test(emailField.value)) {
+        emailField.classList.add('is-invalid');
+        isValid = false;
+    }
+
+    // Validate password confirmation (only if password is provided)
+    const passwordInput = document.getElementById('edit_password');
+    const confirmPasswordInput = document.getElementById('edit_confirm_password');
+    if (passwordInput.value || confirmPasswordInput.value) {
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            confirmPasswordInput.classList.add('is-invalid');
+            isValid = false;
+        }
+    }
+
+    // Validate username format (no spaces, special characters)
+    const usernameField = document.getElementById('edit_username');
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (usernameField.value && !usernameRegex.test(usernameField.value)) {
+        usernameField.classList.add('is-invalid');
+        isValid = false;
+    }
+
+    if (!isValid) {
+        showMessage('Please correct the highlighted fields', 'error');
+        return;
+    }
+    
+    const formData = new FormData(this);
+    
+    // Show loading
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    saveBtn.disabled = true;
+    
+    fetch(`{% url 'system_admin:edit_restaurant' 0 %}`.replace('0', restaurantId), {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
+        saveBtn.disabled = false;
+        
+        if (data.success) {
+            showMessage(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editRestaurantModal')).hide();
+            location.reload(); // Refresh to show updated data
+        } else {
+            if (data.errors) {
+                data.errors.forEach(error => showMessage(error, 'error'));
+            } else {
+                showMessage(data.error || 'Unknown error occurred', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
+        saveBtn.disabled = false;
+        showMessage(`Error updating restaurant: ${error.message}`, 'error');
+    });
+});
+
+function confirmDelete(restaurantName, restaurantId) {
+    console.log('Delete confirmation for restaurant:', restaurantId, restaurantName);
+    
+    document.getElementById('restaurantNameToDelete').textContent = restaurantName;
+    document.getElementById('deleteForm').action = `{% url 'system_admin:delete_restaurant' 0 %}`.replace('0', restaurantId);
+    
+    console.log('Delete form action set to:', document.getElementById('deleteForm').action);
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+// Add form submission handler for delete
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteForm = document.getElementById('deleteForm');
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function(e) {
+            console.log('Delete form submitted');
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn.disabled) {
+                console.log('Delete already in progress, preventing double submission');
+                e.preventDefault();
+                return false;
+            }
+            
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
+            submitBtn.disabled = true;
+            
+            // Don't prevent default - let the form submit normally
+            console.log('Proceeding with delete...');
+        });
+    }
+});
+
+function showMessage(message, type = 'info') {
+    // Create a toast notification
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+    
+    const toastElement = document.createElement('div');
+    toastElement.innerHTML = toastHtml;
+    toastContainer.appendChild(toastElement.firstElementChild);
+    
+    const toast = new bootstrap.Toast(toastContainer.lastElementChild);
+    toast.show();
+    
+    // Remove toast after it's hidden
+    toastContainer.lastElementChild.addEventListener('hidden.bs.toast', function() {
+        this.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}

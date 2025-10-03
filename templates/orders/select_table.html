@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Select Table - Restaurant System{% endblock %}
+{% block title %}Select Table - {{ user.get_restaurant_name }}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -9,7 +9,12 @@
             <div class="card-body p-5 text-center">
                 <div class="mb-4">
                     <i class="bi bi-table display-1 text-primary"></i>
-                    <h2 class="mt-3 mb-2">Welcome!</h2>
+                    <h2 class="mt-3 mb-2">Welcome{% if restaurant %} to {{ restaurant.restaurant_name }}{% endif %}!</h2>
+                    {% if restaurant %}
+                        <div class="alert alert-success mb-3">
+                            <i class="bi bi-qr-code"></i> Restaurant selected via QR code
+                        </div>
+                    {% endif %}
                     <p class="text-muted">Please enter your table number to start ordering</p>
                 </div>
 

@@ -22,13 +22,15 @@ urlpatterns = [
     # Customer order management
     path('my-orders/', views.my_orders, name='my_orders'),
     path('order/<int:order_id>/', views.order_detail, name='order_detail'),
+    path('track/<str:order_number>/', views.track_order, name='track_order'),
+    path('customer-cancel/<int:order_id>/', views.customer_cancel_order, name='customer_cancel_order'),
     
     # Kitchen management
     path('kitchen/', views.kitchen_dashboard, name='kitchen_dashboard'),
     path('kitchen/order/<int:order_id>/', views.kitchen_order_detail, name='kitchen_order_detail'),
-    path('kitchen/confirm/<int:order_id>/', views.confirm_order, name='confirm_order'),
-    path('kitchen/update-status/<int:order_id>/', views.update_order_status, name='update_order_status'),
-    path('kitchen/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
+    path('confirm-order/<int:order_id>/', views.confirm_order, name='confirm_order'),
+    path('update-status/<int:order_id>/', views.update_order_status, name='update_order_status'),
+    path('cancel-order/<int:order_id>/', views.cancel_order, name='cancel_order'),
     
     # Customer care management
     path('customer-care/', views.customer_care_dashboard, name='customer_care_dashboard'),

@@ -1,0 +1,190 @@
+<!-- Modal content for editing orders -->
+<div class="row">
+    <div class="col-lg-8">
+        <form id="editOrderFormModal" method="post" action="{% url 'admin_panel:edit_order' order.id %}">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="table_id_modal" class="form-label">Table</label>
+                        <select class="form-select" id="table_id_modal" name="table_id" required>
+                            {% for table in tables %}
+                                <option value="{{ table.id }}" {% if table.id == order.table_info.id %}selected{% endif %}>
+                                    Table {{ table.tbl_no }} ({{ table.tbl_capacity }} seats)
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="customer_id_modal" class="form-label">Customer</label>
+                        <select class="form-select" id="customer_id_modal" name="customer_id" required>
+                            {% for customer in customers %}
+                                <option value="{{ customer.id }}" {% if customer.id == order.ordered_by.id %}selected{% endif %}>
+                                    {{ customer.first_name }} {{ customer.last_name }} ({{ customer.username }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="status_modal" class="form-label">Status</label>
+                        <select class="form-select" id="status_modal" name="status" required>
+                            {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if value == order.status %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="order_total_modal" class="form-label">Total Amount</label>
+                        <input type="text" class="form-control" id="order_total_modal" 
+                               value="${{ order.total_amount|floatformat:2 }}" readonly>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="special_instructions_modal" class="form-label">Special Instructions</label>
+                <textarea class="form-control" id="special_instructions_modal" name="special_instructions" 
+                          rows="3" placeholder="Any special instructions...">{{ order.special_instructions }}</textarea>
+            </div>
+            
+            <div class="d-flex gap-2 mb-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Order
+                </button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <a href="{% url 'admin_panel:view_order' order.id %}" class="btn btn-info" target="_blank">
+                    <i class="fas fa-eye"></i> View Full Order
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Order Summary</h6>
+            </div>
+            <div class="card-body p-3">
+                <div class="mb-2">
+                    <small class="text-muted">Order Number</small>
+                    <div class="fw-bold">{{ order.order_number }}</div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Created</small>
+                    <div>{{ order.created_at|date:"M d, Y g:i A" }}</div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Current Status</small>
+                    <div>
+                        <span class="badge bg-{% if order.status == 'pending' %}warning{% elif order.status == 'confirmed' %}info{% elif order.status == 'preparing' %}primary{% elif order.status == 'ready' %}success{% elif order.status == 'served' %}secondary{% else %}danger{% endif %}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Table</small>
+                    <div>Table {{ order.table_info.tbl_no }}</div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Customer</small>
+                    <div>{{ order.ordered_by.first_name }} {{ order.ordered_by.last_name }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">Total Amount</small>
+                    <div class="h6 text-success">${{ order.total_amount|floatformat:2 }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Order Items</h6>
+            </div>
+            <div class="card-body p-3" style="max-height: 300px; overflow-y: auto;">
+                {% for item in order.orderitem_set.all %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 small">
+                        <div>
+                            <div class="fw-bold">{{ item.product.name }}</div>
+                            <small class="text-muted">Qty: {{ item.quantity }}</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold">${{ item.total_price|floatformat:2 }}</div>
+                            <small class="text-muted">${{ item.price|floatformat:2 }} each</small>
+                        </div>
+                    </div>
+                {% empty %}
+                    <p class="text-muted small">No items in this order.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('editOrderFormModal').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showAlert('success', data.message);
+            
+            // Close modal
+            $('#editOrderModal').modal('hide');
+            
+            // Reload the page to reflect changes
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+            
+        } else {
+            // Show error message
+            showAlert('danger', 'Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'An error occurred while updating the order.');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+</script>

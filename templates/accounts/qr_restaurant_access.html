@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ restaurant.restaurant_name }} - Access{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg">
+                <div class="card-body p-5 text-center">
+                    <!-- Restaurant Info -->
+                    <div class="mb-4">
+                        <i class="bi bi-shop display-1 text-primary mb-3"></i>
+                        <h2 class="card-title mb-2">{{ restaurant.restaurant_name }}</h2>
+                        {% if restaurant.restaurant_description %}
+                            <p class="text-muted mb-4">{{ restaurant.restaurant_description }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Welcome Message -->
+                    <div class="alert alert-info mb-4">
+                        <i class="bi bi-qr-code"></i>
+                        <strong>QR Code Detected!</strong><br>
+                        You've accessed {{ restaurant.restaurant_name }} via QR code.
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2">
+                        <!-- Login Button -->
+                        <a href="{% url 'accounts:login' %}?next=/r/{{ qr_code }}/" class="btn btn-primary btn-lg">
+                            <i class="bi bi-box-arrow-in-right"></i> Login to Order
+                        </a>
+                        
+                        <!-- Register Button -->
+                        <a href="{% url 'accounts:customer_register' qr_code %}" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-person-plus"></i> Create Account
+                        </a>
+                        
+                        <!-- Guest Access (if applicable) -->
+                        <hr class="my-3">
+                        <p class="text-muted small">
+                            <i class="bi bi-info-circle"></i>
+                            Please login or register to place an order
+                        </p>
+                    </div>
+
+                    <!-- Restaurant Details -->
+                    <div class="mt-4 pt-3 border-top">
+                        {% if restaurant.address %}
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-geo-alt"></i> {{ restaurant.address }}
+                            </p>
+                        {% endif %}
+                        {% if restaurant.phone_number %}
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-telephone"></i> {{ restaurant.phone_number }}
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-redirect if user logs in successfully
+document.addEventListener('DOMContentLoaded', function() {
+    // Store QR access info in sessionStorage
+    sessionStorage.setItem('qr_restaurant_access', '{{ qr_code }}');
+    sessionStorage.setItem('restaurant_name', '{{ restaurant.restaurant_name }}');
+});
+</script>
+{% endblock %}

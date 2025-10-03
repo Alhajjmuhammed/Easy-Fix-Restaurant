@@ -1,0 +1,219 @@
+{% extends 'cashier_base.html' %}
+{% load static %}
+
+{% block title %}Record Food Waste - Cashier{% endblock %}
+
+{% block extra_css %}
+<style>
+    .waste-form-card {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border: none;
+        border-radius: 15px;
+        margin-top: 2rem;
+    }
+    
+    .waste-form-card .card-header {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+        border: none;
+    }
+    
+    .btn-waste-record {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        border: none;
+        padding: 12px 30px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-waste-record:hover {
+        background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(238, 90, 36, 0.4);
+    }
+    
+    .recent-records-card {
+        border: 2px dashed #dee2e6;
+        background: #f8f9fa;
+        border-radius: 15px;
+    }
+    
+    .page-title {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin: -1rem -15px 2rem -15px;
+        border-radius: 0 0 20px 20px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    @media (max-width: 768px) {
+        .page-title {
+            margin: -0.5rem -15px 1.5rem -15px;
+            padding: 1.5rem 0;
+        }
+        
+        .waste-form-card {
+            margin-top: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Title -->
+<div class="page-title">
+    <div class="container">
+        <h1 class="mb-2">🗑️ Food Waste Recording</h1>
+        <p class="mb-0 opacity-75">
+            Record waste incidents quickly and accurately
+        </p>
+    </div>
+</div>
+
+<div class="container">
+                    <form id="wasteForm" class="row g-3">
+                        {% csrf_token %}
+                        <div class="col-md-6">
+                            <label for="product" class="form-label">Product <span class="text-danger">*</span></label>
+                            <select class="form-select" id="product" name="product" required>
+                                <option value="">Select a product...</option>
+                                {% for product in products %}
+                                    <option value="{{ product.id }}">{{ product.name }} - ${{ product.price }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="quantity" class="form-label">Quantity Wasted <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="waste_reason" class="form-label">Reason <span class="text-danger">*</span></label>
+                            <select class="form-select" id="waste_reason" name="waste_reason" required>
+                                <option value="">Select reason...</option>
+                                <option value="customer_refused">Customer Refused</option>
+                                <option value="customer_left">Customer Left Before Pickup</option>
+                                <option value="wrong_order">Wrong Order Made</option>
+                                <option value="quality_issue">Quality Issue</option>
+                                <option value="kitchen_error">Kitchen Error</option>
+                                <option value="overcooking">Overcooking</option>
+                                <option value="undercooking">Undercooking</option>
+                                <option value="contamination">Food Contamination</option>
+                                <option value="other">Other Reason</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="disposal_method" class="form-label">Disposal Method</label>
+                            <select class="form-select" id="disposal_method" name="disposal_method">
+                                <option value="waste_bin">Waste Bin</option>
+                                <option value="staff_meal">Staff Meal</option>
+                                <option value="compost">Compost</option>
+                                <option value="donated">Donated</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="notes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional details about the waste incident..."></textarea>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Record Waste
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Recent Records -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">📋 Your Recent Records</h5>
+                </div>
+                <div class="card-body">
+                    <div id="recentRecords">
+                        <p class="text-muted">Your recent waste records will appear here after recording...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">✅ Waste Recorded Successfully</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>The waste incident has been recorded successfully.</p>
+                <div id="wasteDetails"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal">Continue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('wasteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {
+        product_id: formData.get('product'),
+        quantity_wasted: formData.get('quantity'),
+        waste_reason: formData.get('waste_reason'),
+        disposal_method: formData.get('disposal_method'),
+        notes: formData.get('notes')
+    };
+    
+    fetch("{% url 'waste_management:record_waste' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success modal
+            document.getElementById('wasteDetails').innerHTML = `
+                <strong>Product:</strong> ${data.waste_log.product_name}<br>
+                <strong>Quantity:</strong> ${data.waste_log.quantity_wasted}<br>
+                <strong>Estimated Cost:</strong> $${data.waste_log.total_cost}
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('successModal'));
+            modal.show();
+            
+            // Reset form
+            this.reset();
+            
+            // Refresh recent records
+            loadRecentRecords();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while recording waste');
+    });
+});
+
+function loadRecentRecords() {
+    // This would load recent records, but for simplicity we'll skip this for now
+    document.getElementById('recentRecords').innerHTML = 
+        '<p class="text-success">Waste recorded successfully! Record another incident above.</p>';
+}
+</script>
+{% endblock %}

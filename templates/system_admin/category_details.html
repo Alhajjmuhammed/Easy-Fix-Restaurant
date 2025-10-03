@@ -1,0 +1,92 @@
+<div class="category-details">
+    <div class="row">
+        <div class="col-md-6">
+            <h4>{{ category.name }}</h4>
+            <p><strong>Restaurant:</strong> {{ category.owner.restaurant_name }}</p>
+            <p><strong>Description:</strong> {{ category.description|default:"No description provided" }}</p>
+        </div>
+        <div class="col-md-6">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h5>{{ subcategories.count }}</h5>
+                    <small class="text-muted">Subcategories</small>
+                </div>
+                <div class="stat-item">
+                    <h5>{{ products.count }}</h5>
+                    <small class="text-muted">Products</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Subcategories -->
+    <div class="row">
+        <div class="col-md-6">
+            <h5>Subcategories</h5>
+            {% if subcategories %}
+                <div class="list-group">
+                    {% for subcategory in subcategories %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ subcategory.name }}</h6>
+                                <small class="text-muted">{{ subcategory.description|default:"No description" }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No subcategories found.</p>
+            {% endif %}
+        </div>
+
+        <div class="col-md-6">
+            <h5>Products</h5>
+            {% if products %}
+                <div class="list-group">
+                    {% for product in products %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ product.name }}</h6>
+                                <small class="text-muted">
+                                    ${{ product.price }}
+                                    {% if product.sub_category %} • {{ product.sub_category.name }}{% endif %}
+                                </small>
+                            </div>
+                            <span class="badge bg-{% if product.availability %}success{% else %}danger{% endif %}">
+                                {% if product.availability %}Available{% else %}Unavailable{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No products found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.stats-grid {
+    display: flex;
+    gap: 20px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    flex: 1;
+}
+
+.stat-item h5 {
+    margin-bottom: 5px;
+    color: #007bff;
+}
+</style>

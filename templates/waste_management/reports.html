@@ -1,0 +1,100 @@
+﻿{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}Waste Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Food Waste Reports</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Filter Options</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" id="filter-form">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="start_date">Start Date:</label>
+                    <input type="date" id="start_date" name="date_from" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date">End Date:</label>
+                    <input type="date" id="end_date" name="date_to" class="form-control" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="product">Product:</label>
+                    <select id="product" name="product" class="form-control">
+                        <option value="">All Products</option>
+                        {% for product in products %}
+                            <option value="{{ product.id }}" {% if product.id|stringformat:"s" == product_filter %}selected{% endif %}>
+                                {{ product.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="reason">Reason:</label>
+                    <select id="reason" name="reason" class="form-control">
+                        <option value="">All Reasons</option>
+                        <option value="customer_refused" {% if reason_filter == 'customer_refused' %}selected{% endif %}>Customer Refused</option>
+                        <option value="customer_left" {% if reason_filter == 'customer_left' %}selected{% endif %}>Customer Left Before Pickup</option>
+                        <option value="wrong_order" {% if reason_filter == 'wrong_order' %}selected{% endif %}>Wrong Order Made</option>
+                        <option value="quality_issue" {% if reason_filter == 'quality_issue' %}selected{% endif %}>Quality Issue</option>
+                        <option value="kitchen_error" {% if reason_filter == 'kitchen_error' %}selected{% endif %}>Kitchen Error</option>
+                        <option value="other" {% if reason_filter == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <a href="{% url 'waste_management:reports' %}" class="btn btn-secondary">Clear Filters</a>
+                    <a href="{% url 'waste_management:export_report' %}?{{ request.GET.urlencode }}" class="btn btn-success">Export CSV</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5>Waste Records</h5>
+    </div>
+    <div class="card-body">
+        {% if waste_records %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit</th>
+                            <th>Reason</th>
+                            <th>Disposal Method</th>
+                            <th>Recorded By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in waste_records %}
+                        <tr>
+                            <td>{{ record.created_at|date:"M d, Y H:i" }}</td>
+                            <td>{{ record.product.name }}</td>
+                            <td>{{ record.quantity_wasted }}</td>
+                            <td>{{ record.product.unit|default:"units" }}</td>
+                            <td>{{ record.get_waste_reason_display }}</td>
+                            <td>{{ record.get_disposal_method_display }}</td>
+                            <td>{{ record.recorded_by.get_full_name|default:record.recorded_by.username }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No waste records found for the selected criteria.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

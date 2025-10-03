@@ -1,0 +1,325 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Sales Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2" style="border-radius: 8px; position: relative; border: none;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;"></div>
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1 text-muted">TOTAL REVENUE</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">${{ total_revenue|floatformat:0 }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-primary" style="opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2" style="border-radius: 8px; position: relative; border: none;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;"></div>
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1 text-muted">TOTAL ORDERS</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_orders }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shopping-cart fa-2x text-success" style="opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2" style="border-radius: 8px; position: relative; border: none;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;"></div>
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1 text-muted">ITEMS SOLD</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_items }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-box fa-2x text-info" style="opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2" style="border-radius: 8px; position: relative; border: none;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;"></div>
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1 text-muted">AVG ORDER VALUE</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">${{ avg_order_value|floatformat:0 }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-warning" style="opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Report Filters
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-lg-2 col-md-4">
+                    <label for="period" class="form-label font-weight-bold">Period</label>
+                    <select class="form-control" id="period" name="period" onchange="this.form.submit()">
+                        <option value="all" {% if request.GET.period == 'all' %}selected{% endif %}>All</option>
+                        <option value="today" {% if request.GET.period == 'today' or not request.GET.period %}selected{% endif %}>Today</option>
+                        <option value="weekly" {% if request.GET.period == 'weekly' %}selected{% endif %}>Weekly</option>
+                        <option value="monthly" {% if request.GET.period == 'monthly' %}selected{% endif %}>Monthly</option>
+                        <option value="yearly" {% if request.GET.period == 'yearly' %}selected{% endif %}>Yearly</option>
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label for="category_id" class="form-label font-weight-bold">Category</label>
+                    <select class="form-control" id="category_id" name="category_id" onchange="this.form.submit()">
+                        <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All Categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label for="subcategory_id" class="form-label font-weight-bold">Sub Category</label>
+                    <select class="form-control" id="subcategory_id" name="subcategory_id" onchange="this.form.submit()">
+                        <option value="all" {% if selected_subcategory == 'all' %}selected{% endif %}>All Sub Categories</option>
+                        {% for subcategory in subcategories %}
+                            <option value="{{ subcategory.id }}" {% if selected_subcategory == subcategory.id|stringformat:"s" %}selected{% endif %}>
+                                {{ subcategory.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label for="payment_status" class="form-label font-weight-bold">Payment Status</label>
+                    <select class="form-control" id="payment_status" name="payment_status" onchange="this.form.submit()">
+                        <option value="all" {% if payment_status == 'all' %}selected{% endif %}>All</option>
+                        <option value="paid" {% if payment_status == 'paid' %}selected{% endif %}>Paid</option>
+                        <option value="unpaid" {% if payment_status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                        <option value="partial" {% if payment_status == 'partial' %}selected{% endif %}>Partial</option>
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label for="from_date" class="form-label font-weight-bold">From Date</label>
+                    <input type="date" class="form-control" id="from_date" name="from_date" value="{{ request.GET.from_date }}" onchange="this.form.submit()">
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label for="to_date" class="form-label font-weight-bold">To Date</label>
+                    <input type="date" class="form-control" id="to_date" name="to_date" value="{{ request.GET.to_date }}" onchange="this.form.submit()">
+                </div>
+                
+                <div class="col-lg-12 col-md-12 d-flex align-items-end justify-content-end">
+                    <a href="{% url 'reports:export_csv' %}?payment_status={{ payment_status }}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if selected_category != 'all' %}&category_id={{ selected_category }}{% endif %}{% if selected_subcategory != 'all' %}&subcategory_id={{ selected_subcategory }}{% endif %}" class="btn btn-success me-3">
+                        <i class="fas fa-download mr-2"></i>Export CSV
+                    </a>
+                    <a href="{% url 'reports:export_pdf' %}?payment_status={{ payment_status }}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if selected_category != 'all' %}&category_id={{ selected_category }}{% endif %}{% if selected_subcategory != 'all' %}&subcategory_id={{ selected_subcategory }}{% endif %}" class="btn btn-danger">
+                        <i class="fas fa-file-pdf mr-2"></i>Export PDF
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-table mr-2"></i>Detailed Sales Data
+            </h6>
+            <div class="d-flex">
+                <span class="badge me-3" style="background-color: #343a40; color: white; font-weight: bold;">{{ total_orders }} Orders</span>
+                <span class="badge" style="background-color: #343a40; color: white; font-weight: bold;">${{ total_revenue|floatformat:0 }}</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Order #</th>
+                            <th>Date & Time</th>
+                            <th>Table</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Category</th>
+                            <th>Sub Category</th>
+                            <th>Total Amount</th>
+                            <th>Payment</th>
+                            <th>Status</th>
+                            <th>Cashier</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in page_obj %}
+                        <tr>
+                            <td class="font-weight-bold">ORD-{{ order.id|stringformat:"08d" }}</td>
+                            <td>{{ order.created_at|date:"M d, Y H:i" }}</td>
+                            <td class="text-center">
+                                {% if order.table_info %}
+                                    <span class="badge badge-dark" style="color: white; background-color: #343a40;">{{ order.table_info.tbl_no }}</span>
+                                {% else %}
+                                    <span class="badge badge-secondary" style="color: white;">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if order.ordered_by %}
+                                    {{ order.ordered_by.first_name }} {{ order.ordered_by.last_name }}
+                                {% else %}
+                                    Walk-in Customer
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>
+                                {% for item in order.order_items.all %}
+                                    {{ item.product.name }} x{{ item.quantity }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                                </small>
+                            </td>
+                            <td>
+                                <small>
+                                {% for item in order.order_items.all %}
+                                    {{ item.product.main_category.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                                </small>
+                            </td>
+                            <td>
+                                <small>
+                                {% for item in order.order_items.all %}
+                                    {% if item.product.sub_category %}{{ item.product.sub_category.name }}{% else %}-{% endif %}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                                </small>
+                            </td>
+                            <td class="font-weight-bold">${{ order.total_amount|floatformat:2 }}</td>
+                            <td class="text-center">
+                                {% if order.payment_status == 'paid' %}
+                                    <span class="badge" style="color: white; background-color: #28a745; font-weight: bold;">Paid</span>
+                                {% elif order.payment_status == 'unpaid' %}
+                                    <span class="badge" style="color: white; background-color: #dc3545; font-weight: bold;">Unpaid</span>
+                                {% else %}
+                                    <span class="badge" style="color: black; background-color: #ffc107; font-weight: bold;">Partial</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if order.status == 'served' %}
+                                    <span class="badge" style="color: white; background-color: #28a745; font-weight: bold;">Served</span>
+                                {% elif order.status == 'ready' %}
+                                    <span class="badge" style="color: white; background-color: #17a2b8; font-weight: bold;">Ready</span>
+                                {% elif order.status == 'preparing' %}
+                                    <span class="badge" style="color: black; background-color: #ffc107; font-weight: bold;">Preparing</span>
+                                {% elif order.status == 'confirmed' %}
+                                    <span class="badge" style="color: white; background-color: #007bff; font-weight: bold;">Confirmed</span>
+                                {% elif order.status == 'pending' %}
+                                    <span class="badge" style="color: white; background-color: #6c757d; font-weight: bold;">Pending</span>
+                                {% elif order.status == 'cancelled' %}
+                                    <span class="badge" style="color: white; background-color: #dc3545; font-weight: bold;">Cancelled</span>
+                                {% else %}
+                                    <span class="badge" style="color: white; background-color: #6c757d; font-weight: bold;">{{ order.status|capfirst }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if order.confirmed_by %}
+                                    {{ order.confirmed_by.first_name }} {{ order.confirmed_by.last_name }}
+                                {% elif order.ordered_by %}
+                                    <span class="text-muted">{{ order.ordered_by.first_name }} {{ order.ordered_by.last_name }} (Self)</span>
+                                {% else %}
+                                    <span class="text-muted">System</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3 text-muted"></i><br>
+                                No orders found for the selected filters
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination Controls -->
+            {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <div class="text-muted">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} orders
+                </div>
+                <nav aria-label="Orders pagination">
+                    <ul class="pagination mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if request.GET.payment_status %}&payment_status={{ request.GET.payment_status }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if selected_category != 'all' %}&category_id={{ selected_category }}{% endif %}{% if selected_subcategory != 'all' %}&subcategory_id={{ selected_subcategory }}{% endif %}">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.payment_status %}&payment_status={{ request.GET.payment_status }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if selected_category != 'all' %}&category_id={{ selected_category }}{% endif %}{% if selected_subcategory != 'all' %}&subcategory_id={{ selected_subcategory }}{% endif %}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.payment_status %}&payment_status={{ request.GET.payment_status }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if selected_category != 'all' %}&category_id={{ selected_category }}{% endif %}{% if selected_subcategory != 'all' %}&subcategory_id={{ selected_subcategory }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.payment_status %}&payment_status={{ request.GET.payment_status }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if selected_category != 'all' %}&category_id={{ selected_category }}{% endif %}{% if selected_subcategory != 'all' %}&subcategory_id={{ selected_subcategory }}{% endif %}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.payment_status %}&payment_status={{ request.GET.payment_status }}{% endif %}{% if request.GET.from_date %}&from_date={{ request.GET.from_date }}{% endif %}{% if request.GET.to_date %}&to_date={{ request.GET.to_date }}{% endif %}{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if selected_category != 'all' %}&category_id={{ selected_category }}{% endif %}{% if selected_subcategory != 'all' %}&subcategory_id={{ selected_subcategory }}{% endif %}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,307 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Manage Happy Hour Promotions - Restaurant System{% endblock %}
+
+{% block page_title %}Happy Hour Promotions{% endblock %}
+{% block page_description %}Manage time-based promotional pricing for your restaurant{% endblock %}
+
+{% block extra_css %}
+<style>
+    .promotion-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .promotion-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .promotion-card.active {
+        border-left: 4px solid #28a745;
+    }
+    
+    .promotion-card.inactive {
+        border-left: 4px solid #dc3545;
+        background-color: #f8f9fa;
+    }
+    
+    .promotion-status {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .promotion-status.active {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .promotion-status.inactive {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .currently-active {
+        background: linear-gradient(45deg, #ff6b6b, #ffa500);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.7; }
+        100% { opacity: 1; }
+    }
+    
+    .discount-badge {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    
+    .time-range {
+        background-color: #e9ecef;
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-4">
+    <a href="{% url 'restaurant:add_promotion' %}" class="btn btn-primary">
+        <i class="fas fa-plus-circle"></i> Create New Promotion
+    </a>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card shadow h-100 py-2" style="border-radius: 8px; position: relative; border: none;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;"></div>
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1 text-muted">Total Promotions</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_promotions }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-tags fa-2x text-primary" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow h-100 py-2" style="border-radius: 8px; position: relative; border: none;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;"></div>
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1 text-muted">Active Promotions</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">{{ active_promotions }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-success" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow h-100 py-2" style="border-radius: 8px; position: relative; border: none;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;"></div>
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1 text-muted">Currently Running LIVE</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">{{ currently_running }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-play-circle fa-2x text-warning" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow h-100 py-2" style="border-radius: 8px; position: relative; border: none;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;"></div>
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1 text-muted">Products Affected</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">
+                            {% for promotion in promotions %}
+                                {% if forloop.first %}{{ promotion.get_affected_products_count }}{% endif %}
+                            {% empty %}0{% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-utensils fa-2x text-info" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Promotions List -->
+{% if promotions %}
+    <div class="row">
+        {% for promotion in promotions %}
+            <div class="col-lg-6 mb-3">
+                <div class="promotion-card {% if promotion.is_active %}active{% else %}inactive{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="mb-0">
+                            {{ promotion.name }}
+                            {% if promotion.is_currently_active %}
+                                <span class="currently-active ms-2">
+                                    <i class="fas fa-fire"></i> LIVE NOW
+                                </span>
+                            {% endif %}
+                        </h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'restaurant:edit_promotion' promotion.id %}">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'restaurant:promotion_preview' promotion.id %}">
+                                    <i class="fas fa-eye"></i> Preview
+                                </a></li>
+                                <li><button class="dropdown-item" onclick="togglePromotion({{ promotion.id }})">
+                                    <i class="fas fa-toggle-{% if promotion.is_active %}off{% else %}on{% endif %}"></i> 
+                                    {% if promotion.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="{% url 'restaurant:delete_promotion' promotion.id %}">
+                                    <i class="fas fa-trash"></i> Delete
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <span class="discount-badge">{{ promotion.discount_percentage }}% OFF</span>
+                        <span class="promotion-status {% if promotion.is_active %}active{% else %}inactive{% endif %} ms-2">
+                            {% if promotion.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                    
+                    {% if promotion.description %}
+                        <p class="text-muted small mb-3">{{ promotion.description }}</p>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <strong>Time:</strong><br>
+                            <div class="time-range">
+                                {{ promotion.start_time|time:"H:i" }} - {{ promotion.end_time|time:"H:i" }}
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <strong>Days:</strong><br>
+                            <small class="text-primary">{{ promotion.get_days_display }}</small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-utensils"></i> {{ promotion.get_affected_products_count }} product{{ promotion.get_affected_products_count|pluralize }} affected
+                        </small>
+                        <small class="text-muted">
+                            Created {{ promotion.created_at|date:"M d, Y" }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-clock display-1 text-muted mb-3"></i>
+        <h4>No Happy Hour Promotions Yet</h4>
+        <p class="text-muted">Create your first time-based promotion to attract customers during specific hours!</p>
+        <a href="{% url 'restaurant:add_promotion' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus-circle"></i> Create First Promotion
+        </a>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePromotion(promotionId) {
+    fetch(`/restaurant/promotions/${promotionId}/toggle/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Reload page to show updated status
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred while updating the promotion.', 'error');
+    });
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-' + (type === 'success' ? 'success' : 'danger') + ' alert-dismissible fade show position-fixed';
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

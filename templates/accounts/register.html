@@ -3,7 +3,16 @@
 {% block title %}Register - Restaurant System{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row just                        <a href="{% url 'accounts:login' %}" class="btn btn-outline-primary">
+                            Sign in here
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
     <div class="col-md-8 col-lg-6">
         <div class="card shadow">
             <div class="card-body p-4">
@@ -135,6 +144,16 @@
                             Sign in here
                         </a>
                     </p>
+                    <hr class="my-3">
+                    <div class="alert alert-info">
+                        <i class="bi bi-crown-fill me-2"></i>
+                        <strong>Restaurant Owner?</strong><br>
+                        Register your restaurant with our special owner registration
+                        <br><br>
+                        <a href="{% url 'accounts:register_owner' %}" class="btn btn-warning btn-sm">
+                            <i class="bi bi-shop me-2"></i>Register as Owner
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

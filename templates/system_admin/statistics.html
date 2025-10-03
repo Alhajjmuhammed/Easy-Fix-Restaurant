@@ -1,0 +1,300 @@
+{% extends 'system_admin/base.html' %}
+
+{% block title %}Statistics - System Administration{% endblock %}
+{% block page_title %}Statistics{% endblock %}
+{% block page_subtitle %}Comprehensive System Analytics{% endblock %}
+
+{% block content %}
+<!-- Overview Cards -->
+<div class="row mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #3498db, #2980b9);">
+                <i class="fas fa-store"></i>
+            </div>
+            <h4>{{ stats.total_restaurants }}</h4>
+            <p>Restaurants</p>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #27ae60, #229954);">
+                <i class="fas fa-users"></i>
+            </div>
+            <h4>{{ stats.total_users }}</h4>
+            <p>Total Users</p>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #f39c12, #e67e22);">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <h4>{{ stats.total_orders }}</h4>
+            <p>Total Orders</p>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #9b59b6, #8e44ad);">
+                <i class="fas fa-box"></i>
+            </div>
+            <h4>{{ stats.total_products }}</h4>
+            <p>Products</p>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">
+                <i class="fas fa-tags"></i>
+            </div>
+            <h4>{{ stats.total_categories }}</h4>
+            <p>Categories</p>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #34495e, #2c3e50);">
+                <i class="fas fa-chair"></i>
+            </div>
+            <h4>{{ stats.total_tables }}</h4>
+            <p>Tables</p>
+        </div>
+    </div>
+</div>
+
+<!-- Time-based Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Order Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="border-end">
+                            <h3 class="text-success">{{ stats.orders_today }}</h3>
+                            <small class="text-muted">Today</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border-end">
+                            <h3 class="text-info">{{ stats.orders_this_week }}</h3>
+                            <small class="text-muted">This Week</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-primary">{{ stats.orders_this_month }}</h3>
+                        <small class="text-muted">This Month</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-plus me-2"></i>
+                    New User Registrations
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="border-end">
+                            <h3 class="text-success">{{ stats.new_users_today }}</h3>
+                            <small class="text-muted">Today</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border-end">
+                            <h3 class="text-info">{{ stats.new_users_this_week }}</h3>
+                            <small class="text-muted">This Week</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-primary">{{ stats.new_users_this_month }}</h3>
+                        <small class="text-muted">This Month</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Breakdown Charts -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Order Status Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for status, count in order_status_counts.items %}
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <div class="d-flex align-items-center">
+                        {% if status == 'pending' %}
+                            <span class="badge bg-warning me-2">{{ status|title }}</span>
+                        {% elif status == 'confirmed' %}
+                            <span class="badge bg-info me-2">{{ status|title }}</span>
+                        {% elif status == 'preparing' %}
+                            <span class="badge bg-primary me-2">{{ status|title }}</span>
+                        {% elif status == 'ready' %}
+                            <span class="badge bg-success me-2">{{ status|title }}</span>
+                        {% elif status == 'delivered' %}
+                            <span class="badge bg-secondary me-2">{{ status|title }}</span>
+                        {% else %}
+                            <span class="badge bg-danger me-2">{{ status|title }}</span>
+                        {% endif %}
+                        <span>{{ status|title }} Orders</span>
+                    </div>
+                    <strong>{{ count }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users-cog me-2"></i>
+                    User Role Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for role, count in user_role_counts.items %}
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <div class="d-flex align-items-center">
+                        {% if role == 'owner' %}
+                            <span class="badge bg-primary me-2">{{ role|title }}</span>
+                        {% elif role == 'kitchen' %}
+                            <span class="badge bg-warning me-2">{{ role|title }}</span>
+                        {% elif role == 'customer_care' %}
+                            <span class="badge bg-info me-2">Customer Care</span>
+                        {% elif role == 'admin' %}
+                            <span class="badge bg-danger me-2">{{ role|title }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary me-2">{{ role|title }}</span>
+                        {% endif %}
+                        <span>{{ role|title }} Users</span>
+                    </div>
+                    <strong>{{ count }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Restaurants -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-trophy me-2"></i>
+                    Top Restaurants by Order Volume
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if top_restaurants %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Restaurant</th>
+                                    <th>Owner</th>
+                                    <th>Total Orders</th>
+                                    <th>Registration Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for restaurant in top_restaurants %}
+                                <tr>
+                                    <td>
+                                        {% if forloop.counter == 1 %}
+                                            <i class="fas fa-trophy text-warning"></i>
+                                        {% elif forloop.counter == 2 %}
+                                            <i class="fas fa-medal text-muted"></i>
+                                        {% elif forloop.counter == 3 %}
+                                            <i class="fas fa-award text-warning"></i>
+                                        {% else %}
+                                            {{ forloop.counter }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ restaurant.restaurant_name }}</strong>
+                                    </td>
+                                    <td>{{ restaurant.get_full_name|default:restaurant.username }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ restaurant.order_count }}</span>
+                                    </td>
+                                    <td>{{ restaurant.date_joined|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-success">Active</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-3">No restaurant data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-download me-2"></i>
+                    Export & Reports
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary" onclick="showMessage('Export functionality coming soon')">
+                        <i class="fas fa-file-csv me-1"></i> Export to CSV
+                    </button>
+                    <button class="btn btn-outline-success" onclick="showMessage('Export functionality coming soon')">
+                        <i class="fas fa-file-excel me-1"></i> Export to Excel
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="showMessage('Export functionality coming soon')">
+                        <i class="fas fa-file-pdf me-1"></i> Generate PDF Report
+                    </button>
+                    <button class="btn btn-outline-info" onclick="showMessage('Backup functionality coming soon')">
+                        <i class="fas fa-database me-1"></i> Backup Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh statistics every 5 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+</script>
+{% endblock %}

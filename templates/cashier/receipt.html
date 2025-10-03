@@ -1,0 +1,241 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt - {{ order.order_number }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .receipt-container, .receipt-container * {
+                visibility: visible;
+            }
+            .receipt-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        .receipt-container {
+            max-width: 300px;
+            margin: 20px auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+        
+        .receipt-header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .receipt-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .receipt-info {
+            margin-bottom: 10px;
+        }
+        
+        .receipt-items {
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        
+        .item-name {
+            flex: 1;
+            text-align: left;
+        }
+        
+        .item-price {
+            text-align: right;
+            min-width: 60px;
+        }
+        
+        .receipt-totals {
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        
+        .total-row.grand-total {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+        }
+        
+        .receipt-payment {
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .receipt-footer {
+            text-align: center;
+            font-size: 10px;
+        }
+        
+        .receipt-number {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .print-buttons {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="receipt-container">
+            <!-- Restaurant Header -->
+            <div class="receipt-header">
+                <div class="receipt-title">{{ user.get_restaurant_name|default:"Restaurant Name" }}</div>
+                <div>{{ user.restaurant_description|default:"Quality Food & Service" }}</div>
+                {% if user.phone_number %}
+                <div>Tel: {{ user.phone_number }}</div>
+                {% endif %}
+                {% if user.address %}
+                <div>{{ user.address }}</div>
+                {% endif %}
+            </div>
+            
+            <!-- Receipt Info -->
+            <div class="receipt-info">
+                <div class="receipt-number">RECEIPT #{{ payment.id|stringformat:"06d" }}</div>
+                <div>Order: {{ order.order_number }}</div>
+                <div>Date: {{ payment.created_at|date:"M d, Y" }}</div>
+                <div>Time: {{ payment.created_at|date:"H:i" }}</div>
+                <div>Table: {{ order.table_info.tbl_no|default:"Takeaway" }}</div>
+                <div>Cashier: {{ payment.processed_by.first_name }} {{ payment.processed_by.last_name }}</div>
+            </div>
+            
+            <!-- Order Items -->
+            <div class="receipt-items">
+                <div style="font-weight: bold; margin-bottom: 5px;">ITEMS:</div>
+                {% for item in order.order_items.all %}
+                    <div class="item-row">
+                        <div class="item-name">
+                            {{ item.quantity }}x {{ item.product.name }}
+                            {% if item.product.has_active_promotion %}
+                            <br><small style="color: #666;">  (Happy Hour {{ item.product.happy_hour_discount }}% off)</small>
+                            {% endif %}
+                        </div>
+                        <div class="item-price">${{ item.get_total_price|floatformat:2 }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Totals -->
+            <div class="receipt-totals">
+                <div class="total-row">
+                    <div>Subtotal:</div>
+                    <div>${{ order.get_subtotal|floatformat:2 }}</div>
+                </div>
+                {% if order.get_total_discount > 0 %}
+                <div class="total-row" style="color: #d63384;">
+                    <div>Discount:</div>
+                    <div>-${{ order.get_total_discount|floatformat:2 }}</div>
+                </div>
+                {% endif %}
+                <div class="total-row">
+                    <div>Tax ({{ order.tax_rate|floatformat:1 }}%):</div>
+                    <div>${{ order.get_tax_amount|floatformat:2 }}</div>
+                </div>
+                <div class="total-row grand-total">
+                    <div>TOTAL:</div>
+                    <div>${{ order.get_total|floatformat:2 }}</div>
+                </div>
+            </div>
+            
+            <!-- Payment Information -->
+            <div class="receipt-payment">
+                <div style="font-weight: bold; margin-bottom: 5px;">PAYMENT:</div>
+                <div class="total-row">
+                    <div>Method:</div>
+                    <div>{{ payment.get_payment_method_display }}</div>
+                </div>
+                <div class="total-row">
+                    <div>Amount Paid:</div>
+                    <div>${{ payment.amount|floatformat:2 }}</div>
+                </div>
+                {% if payment.reference_number %}
+                <div class="total-row">
+                    <div>Reference:</div>
+                    <div>{{ payment.reference_number }}</div>
+                </div>
+                {% endif %}
+                
+                <!-- Calculate change for cash payments -->
+                {% if change_amount > 0 %}
+                <div class="total-row" style="font-weight: bold;">
+                    <div>Change:</div>
+                    <div>${{ change_amount|floatformat:2 }}</div>
+                </div>
+                {% endif %}
+                
+                <!-- Show remaining balance if partial payment -->
+                {% if remaining_balance > 0 %}
+                <div class="total-row" style="color: #dc3545;">
+                    <div>Remaining:</div>
+                    <div>${{ remaining_balance|floatformat:2 }}</div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Footer -->
+            <div class="receipt-footer">
+                <div>Thank you for dining with us!</div>
+                <div>Please come again</div>
+                <br>
+                <div>Receipt generated on</div>
+                <div>{{ "now"|date:"M d, Y H:i" }}</div>
+            </div>
+        </div>
+        
+        <!-- Print Buttons -->
+        <div class="print-buttons no-print">
+            <button type="button" class="btn btn-primary me-2" onclick="window.print()">
+                <i class="fas fa-print"></i> Print Receipt
+            </button>
+            <a href="/cashier/receipts/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Cashier
+            </a>
+            <a href="{% url 'cashier:reprint_receipt' payment.id %}" class="btn btn-info ms-2">
+                <i class="fas fa-copy"></i> Reprint
+            </a>
+        </div>
+    </div>
+    
+    <!-- Include Font Awesome for icons -->
+    <script src="https://kit.fontawesome.com/your-font-awesome-kit.js"></script>
+</body>
+</html>

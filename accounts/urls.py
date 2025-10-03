@@ -7,5 +7,8 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('register/', views.register_view, name='register'),
+    path('register-owner/', views.register_owner_view, name='register_owner'),
+    path('customer-register/<str:qr_code>/', views.customer_register_view, name='customer_register'),
     path('profile/', views.profile_view, name='profile'),
+    path('csrf-debug/', views.csrf_debug_view, name='csrf_debug'),
 ]

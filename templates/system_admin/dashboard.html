@@ -1,0 +1,209 @@
+{% extends 'system_admin/base.html' %}
+
+{% block title %}Dashboard - System Administration{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}System Overview and Statistics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #3498db, #2980b9);">
+                <i class="fas fa-store"></i>
+            </div>
+            <h3>{{ total_restaurants }}</h3>
+            <p>Total Restaurants</p>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #27ae60, #229954);">
+                <i class="fas fa-users"></i>
+            </div>
+            <h3>{{ total_users }}</h3>
+            <p>Total Users</p>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #f39c12, #e67e22);">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <h3>{{ total_orders }}</h3>
+            <p>Total Orders</p>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">
+                <i class="fas fa-chair"></i>
+            </div>
+            <h3>{{ total_tables }}</h3>
+            <p>Active Tables</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    System Activity
+                </h5>
+                <small class="text-muted">Last 7 days</small>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-primary">{{ total_restaurants }}</h4>
+                            <small class="text-muted">Restaurants</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-success">{{ total_users }}</h4>
+                            <small class="text-muted">Active Users</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-warning">{{ total_orders }}</h4>
+                            <small class="text-muted">Orders Today</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-info">{{ total_tables }}</h4>
+                        <small class="text-muted">Available Tables</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="mt-3">
+                    <h6 class="text-muted">Quick Actions</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{% url 'system_admin:manage_restaurants' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-store me-1"></i> Manage Restaurants
+                        </a>
+                        <a href="{% url 'system_admin:manage_users' %}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-users me-1"></i> Manage Users
+                        </a>
+                        <a href="{% url 'system_admin:view_orders' %}" class="btn btn-outline-warning btn-sm">
+                            <i class="fas fa-clipboard-list me-1"></i> View Orders
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bell me-2"></i>
+                    System Alerts
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success">
+                    <small><i class="fas fa-check-circle me-1"></i> All systems operational</small>
+                </div>
+                <div class="alert alert-info">
+                    <small><i class="fas fa-info-circle me-1"></i> {{ total_orders }} orders processed today</small>
+                </div>
+                <div class="alert alert-warning">
+                    <small><i class="fas fa-exclamation-triangle me-1"></i> Regular backup recommended</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-store me-2"></i>
+                    Recent Restaurants
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_restaurants %}
+                    {% for restaurant in recent_restaurants %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div>
+                            <strong>{{ restaurant.restaurant_name }}</strong>
+                            <br>
+                            <small class="text-muted">
+                                <i class="fas fa-user me-1"></i>
+                                Owner: {{ restaurant.get_full_name }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-3">No restaurants found</p>
+                {% endif %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'system_admin:manage_restaurants' %}" class="btn btn-outline-primary btn-sm">
+                        View All Restaurants
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Recent Orders
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_orders %}
+                    {% for order in recent_orders %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div>
+                            <strong>Order #{{ order.id }}</strong>
+                            <br>
+                            <small class="text-muted">
+                                <i class="fas fa-store me-1"></i>
+                                {{ order.table_info.owner.restaurant_name }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            {% if order.status == 'pending' %}
+                                <span class="badge bg-warning">{{ order.status|title }}</span>
+                            {% elif order.status == 'confirmed' %}
+                                <span class="badge bg-info">{{ order.status|title }}</span>
+                            {% elif order.status == 'preparing' %}
+                                <span class="badge bg-primary">{{ order.status|title }}</span>
+                            {% elif order.status == 'ready' %}
+                                <span class="badge bg-success">{{ order.status|title }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ order.status|title }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-3">No recent orders</p>
+                {% endif %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'system_admin:view_orders' %}" class="btn btn-outline-primary btn-sm">
+                        View All Orders
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

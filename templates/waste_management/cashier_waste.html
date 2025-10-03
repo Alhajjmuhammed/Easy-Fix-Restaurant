@@ -1,0 +1,220 @@
+{% extends 'cashier_base.html' %}
+
+{% block title %}Record Waste - Cashier{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="cashier-card">
+            <div class="cashier-card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-trash-alt me-3"></i>
+                    Record Food Waste
+                </h4>
+                <p class="mb-0 mt-2 opacity-75">Log waste incidents quickly and accurately</p>
+            </div>
+            
+            <div class="cashier-card-body">
+                <form id="wasteForm">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="product" class="form-label fw-bold">
+                                <i class="fas fa-utensils me-2 text-primary"></i>Product *
+                            </label>
+                            <select class="form-select" id="product" name="product" required>
+                                <option value="">Select a product...</option>
+                                {% for product in products %}
+                                    <option value="{{ product.id }}" data-price="{{ product.price }}">
+                                        {{ product.name }} - ${{ product.price }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="quantity" class="form-label fw-bold">
+                                <i class="fas fa-sort-numeric-up me-2 text-primary"></i>Quantity *
+                            </label>
+                            <input type="number" class="form-control text-center" id="quantity" 
+                                   name="quantity" min="1" max="99" placeholder="1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="waste_reason" class="form-label fw-bold">
+                                <i class="fas fa-question-circle me-2 text-primary"></i>Reason *
+                            </label>
+                            <select class="form-select" id="waste_reason" name="waste_reason" required>
+                                <option value="">Select reason...</option>
+                                <option value="customer_refused">Customer Refused</option>
+                                <option value="customer_left">Customer Left</option>
+                                <option value="wrong_order">Wrong Order</option>
+                                <option value="quality_issue">Quality Issue</option>
+                                <option value="kitchen_error">Kitchen Error</option>
+                                <option value="overcooking">Overcooking</option>
+                                <option value="undercooking">Undercooking</option>
+                                <option value="contamination">Contamination</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="disposal_method" class="form-label fw-bold">
+                                <i class="fas fa-recycle me-2 text-primary"></i>Disposal Method
+                            </label>
+                            <select class="form-select" id="disposal_method" name="disposal_method">
+                                <option value="waste_bin">Waste Bin</option>
+                                <option value="staff_meal">Staff Meal</option>
+                                <option value="compost">Compost</option>
+                                <option value="donated">Donated</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label fw-bold">
+                            <i class="fas fa-sticky-note me-2 text-primary"></i>Notes (Optional)
+                        </label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                  placeholder="Additional details about this waste incident..."></textarea>
+                    </div>
+                    
+                    <!-- Cost Preview -->
+                    <div id="costPreview" class="alert alert-warning" style="display: none;">
+                        <i class="fas fa-dollar-sign me-2"></i>
+                        <strong>Estimated Cost Impact: $<span id="estimatedCost">0.00</span></strong>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{% url 'cashier:dashboard' %}" class="btn btn-cashier-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </a>
+                        <button type="submit" class="btn btn-cashier-primary" id="submitBtn">
+                            <i class="fas fa-save me-2"></i>Record Waste
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Success Message Area -->
+        <div id="successMessage" class="cashier-card mt-4" style="display: none;">
+            <div class="cashier-card-body text-center">
+                <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 mb-2 text-success">Waste Recorded Successfully!</h5>
+                <p class="text-muted mb-3" id="wasteDetails"></p>
+                <button type="button" class="btn btn-cashier-primary" onclick="resetForm()">
+                    <i class="fas fa-plus me-2"></i>Record Another
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+    <div class="text-center text-white">
+        <div class="spinner-border text-light mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Recording waste incident...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('wasteForm');
+    const productSelect = document.getElementById('product');
+    const quantityInput = document.getElementById('quantity');
+    const costPreview = document.getElementById('costPreview');
+    const estimatedCost = document.getElementById('estimatedCost');
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const successMessage = document.getElementById('successMessage');
+    const wasteDetails = document.getElementById('wasteDetails');
+    
+    // Update cost preview
+    function updateCostPreview() {
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        if (selectedOption && selectedOption.dataset.price && quantity > 0) {
+            const price = parseFloat(selectedOption.dataset.price);
+            const totalCost = (price * quantity).toFixed(2);
+            estimatedCost.textContent = totalCost;
+            costPreview.style.display = 'block';
+        } else {
+            costPreview.style.display = 'none';
+        }
+    }
+    
+    productSelect.addEventListener('change', updateCostPreview);
+    quantityInput.addEventListener('input', updateCostPreview);
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Show loading
+        loadingOverlay.style.display = 'flex';
+        submitBtn.disabled = true;
+        
+        // Collect form data
+        const formData = {
+            product_id: productSelect.value,
+            quantity_wasted: quantityInput.value,
+            waste_reason: document.getElementById('waste_reason').value,
+            disposal_method: document.getElementById('disposal_method').value,
+            notes: document.getElementById('notes').value
+        };
+        
+        // Submit to server
+        fetch('{% url "waste_management:record_waste" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingOverlay.style.display = 'none';
+            submitBtn.disabled = false;
+            
+            if (data.success) {
+                // Show success message
+                wasteDetails.innerHTML = `
+                    <strong>${data.waste_log.product_name}</strong> - 
+                    Quantity: ${data.waste_log.quantity_wasted} - 
+                    Cost: $${data.waste_log.total_cost}
+                `;
+                
+                form.style.display = 'none';
+                successMessage.style.display = 'block';
+                
+            } else {
+                alert('Error: ' + (data.error || 'Failed to record waste'));
+            }
+        })
+        .catch(error => {
+            loadingOverlay.style.display = 'none';
+            submitBtn.disabled = false;
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    });
+    
+    // Reset form function
+    window.resetForm = function() {
+        form.reset();
+        costPreview.style.display = 'none';
+        form.style.display = 'block';
+        successMessage.style.display = 'none';
+    };
+});
+</script>
+{% endblock %}

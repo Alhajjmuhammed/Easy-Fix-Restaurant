@@ -1,0 +1,740 @@
+{% extends 'system_admin/base.html' %}
+{% load static %}
+
+{% block title %}Manage Orders - System Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+.order-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    transition: box-shadow 0.2s;
+}
+
+.order-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.order-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px;
+    border-radius: 8px 8px 0 0;
+}
+
+.order-body {
+    padding: 15px;
+}
+
+.order-number {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.restaurant-badge {
+    background-color: #6c757d;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+}
+
+.status-badge {
+    font-size: 0.9em;
+    padding: 6px 12px;
+}
+
+.amount-text {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.table-info {
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.order-table-row:hover {
+    background-color: #f8f9fa;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    min-height: 400px;
+}
+
+.table-sm th, .table-sm td {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.table {
+    min-width: 1200px;
+    white-space: nowrap;
+}
+
+.badge.order-status-pending { 
+    background-color: #ff9800 !important; 
+    color: #000 !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #e68900 !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+.badge.order-status-confirmed { 
+    background-color: #2196f3 !important; 
+    color: #fff !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #1976d2 !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+.badge.order-status-preparing { 
+    background-color: #3f51b5 !important; 
+    color: #fff !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #303f9f !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+.badge.order-status-ready { 
+    background-color: #4caf50 !important; 
+    color: #fff !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #388e3c !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+.badge.order-status-served { 
+    background-color: #424242 !important; 
+    color: #fff !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #212121 !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+.badge.order-status-cancelled { 
+    background-color: #f44336 !important; 
+    color: #fff !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #d32f2f !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+
+.badge.payment-status-paid { 
+    background-color: #4caf50 !important; 
+    color: #fff !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #388e3c !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+.badge.payment-status-partial { 
+    background-color: #ff5722 !important; 
+    color: #fff !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #d84315 !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+.badge.payment-status-pending { 
+    background-color: #f44336 !important; 
+    color: #fff !important; 
+    font-weight: 700 !important; 
+    border: 1px solid #d32f2f !important;
+    font-size: 0.8em !important;
+    padding: 0.4em 0.7em !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-receipt"></i> Manage Orders</h2>
+                    <p class="text-muted">System-wide order management for all restaurants</p>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card filters-card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="restaurantFilter" class="form-label">Filter by Restaurant:</label>
+                            <select class="form-select" id="restaurantFilter" onchange="applyFilters()">
+                                <option value="">All Restaurants</option>
+                                {% for restaurant in restaurants %}
+                                <option value="{{ restaurant.id }}" {% if selected_restaurant and selected_restaurant.id == restaurant.id %}selected{% endif %}>
+                                    {{ restaurant.restaurant_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="statusFilter" class="form-label">Order Status:</label>
+                            <select class="form-select" id="statusFilter" onchange="applyFilters()">
+                                <option value="">All Statuses</option>
+                                {% for status_code, status_name in status_choices %}
+                                <option value="{{ status_code }}" {% if selected_status == status_code %}selected{% endif %}>
+                                    {{ status_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="paymentStatusFilter" class="form-label">Payment Status:</label>
+                            <select class="form-select" id="paymentStatusFilter" onchange="applyFilters()">
+                                <option value="">All Payments</option>
+                                {% for payment_code, payment_name in payment_status_choices %}
+                                <option value="{{ payment_code }}" {% if selected_payment_status == payment_code %}selected{% endif %}>
+                                    {{ payment_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="dateFilter" class="form-label">Date Range:</label>
+                            <select class="form-select" id="dateFilter" onchange="applyFilters()">
+                                <option value="">All Dates</option>
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="me-3">
+                                <div class="btn-group" role="group" aria-label="View toggle">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="cardView" onclick="switchView('card')">
+                                        <i class="fas fa-th-large"></i> Cards
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm active" id="tableView" onclick="switchView('table')">
+                                        <i class="fas fa-table"></i> Table
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-muted">
+                                Showing {{ orders.count }} orders
+                                {% if selected_restaurant %}for {{ selected_restaurant.restaurant_name }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders List -->
+            <!-- Card View -->
+            <div class="row" id="orderCardView" style="display: none;">
+                {% for order in orders %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="order-number">{{ order.order_number }}</div>
+                                    <div class="mb-2">
+                                        <span class="restaurant-badge">{{ order.table_info.owner.restaurant_name }}</span>
+                                    </div>
+                                    <div class="table-info">
+                                        <i class="fas fa-chair"></i> Table {{ order.table_info.tbl_no }}
+                                        • {{ order.ordered_by.get_full_name|default:order.ordered_by.username }}
+                                    </div>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="#" onclick="viewOrderDetails({{ order.id }})">
+                                            <i class="fas fa-eye"></i> View Details
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="updateOrderStatus({{ order.id }})">
+                                            <i class="fas fa-edit"></i> Update Status
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="updatePaymentStatus({{ order.id }})">
+                                            <i class="fas fa-credit-card"></i> Update Payment
+                                        </a></li>
+                                        {% if order.status != 'cancelled' and order.status != 'served' %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="#" onclick="cancelOrder({{ order.id }}, '{{ order.order_number }}')">
+                                            <i class="fas fa-times-circle"></i> Cancel Order
+                                        </a></li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="order-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge status-badge 
+                                    {% if order.status == 'pending' %}bg-warning text-dark
+                                    {% elif order.status == 'confirmed' %}bg-info
+                                    {% elif order.status == 'preparing' %}bg-primary
+                                    {% elif order.status == 'ready' %}bg-success
+                                    {% elif order.status == 'served' %}bg-dark
+                                    {% elif order.status == 'cancelled' %}bg-danger
+                                    {% endif %}">
+                                    {{ order.get_status_display }}
+                                </span>
+                                <span class="badge 
+                                    {% if order.payment_status == 'paid' %}bg-success
+                                    {% elif order.payment_status == 'partial' %}bg-warning text-dark
+                                    {% else %}bg-danger
+                                    {% endif %}">
+                                    {{ order.get_payment_status_display }}
+                                </span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="amount-text">${{ order.total_amount|floatformat:2 }}</span>
+                                <small class="text-muted">{{ order.created_at|date:"M d, Y H:i" }}</small>
+                            </div>
+                            
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    {{ order.get_total_products }} item{{ order.get_total_products|pluralize }}
+                                    {% if order.special_instructions %}
+                                    • <i class="fas fa-sticky-note"></i> Notes
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No orders found</h5>
+                        <p class="text-muted">No orders match your current filters.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Table View -->
+            <div id="orderTableView">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">SN</th>
+                                <th style="width: 120px;">Order #</th>
+                                <th style="width: 100px;">Restaurant</th>
+                                <th style="width: 80px;">Table</th>
+                                <th style="width: 100px;">Customer</th>
+                                <th style="width: 80px;">Items</th>
+                                <th style="width: 90px;">Amount</th>
+                                <th style="width: 120px;">Order Status</th>
+                                <th style="width: 120px;">Payment Status</th>
+                                <th style="width: 100px;">Date</th>
+                                <th style="width: 150px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr class="order-table-row">
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <strong class="text-primary">{{ order.order_number }}</strong>
+                                    {% if order.special_instructions %}
+                                    <br><small class="text-muted"><i class="fas fa-sticky-note"></i> Has notes</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ order.table_info.owner.restaurant_name }}</td>
+                                <td>
+                                    <i class="fas fa-chair"></i> {{ order.table_info.tbl_no }}
+                                </td>
+                                <td>{{ order.ordered_by.get_full_name|default:order.ordered_by.username }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ order.get_total_products }} item{{ order.get_total_products|pluralize }}</span>
+                                </td>
+                                <td>
+                                    <strong class="text-success">${{ order.total_amount|floatformat:2 }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge status-badge 
+                                        {% if order.status == 'pending' %}bg-warning text-dark
+                                        {% elif order.status == 'confirmed' %}bg-info
+                                        {% elif order.status == 'preparing' %}bg-primary
+                                        {% elif order.status == 'ready' %}bg-success
+                                        {% elif order.status == 'served' %}bg-dark
+                                        {% elif order.status == 'cancelled' %}bg-danger
+                                        {% endif %}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if order.payment_status == 'paid' %}bg-success
+                                        {% elif order.payment_status == 'partial' %}bg-warning text-dark
+                                        {% else %}bg-danger
+                                        {% endif %}">
+                                        {{ order.get_payment_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small>{{ order.created_at|date:"M d, Y" }}<br>{{ order.created_at|date:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewOrderDetails({{ order.id }})" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="updateOrderStatus({{ order.id }})" title="Update Status">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success" onclick="updatePaymentStatus({{ order.id }})" title="Update Payment">
+                                        <i class="fas fa-credit-card"></i>
+                                    </button>
+                                    {% if order.status != 'cancelled' and order.status != 'served' %}
+                                    <button class="btn btn-sm btn-outline-danger" onclick="cancelOrder({{ order.id }}, '{{ order.order_number }}')" title="Cancel">
+                                        <i class="fas fa-times-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="11" class="text-center py-4">
+                                    <i class="fas fa-receipt fa-2x text-muted mb-2"></i>
+                                    <div class="text-muted">No orders found</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Details Modal -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="orderDetailsContent">
+                <!-- Content loaded via AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Status Modal -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Order Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="updateStatusForm">
+                {% csrf_token %}
+                <input type="hidden" id="statusOrderId" name="order_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newStatus" class="form-label">New Status *</label>
+                        <select class="form-select" id="newStatus" name="status" required>
+                            {% for status_code, status_name in status_choices %}
+                            <option value="{{ status_code }}">{{ status_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3" id="reasonField" style="display: none;">
+                        <label for="cancellationReason" class="form-label">Cancellation Reason *</label>
+                        <textarea class="form-control" id="cancellationReason" name="reason" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Payment Modal -->
+<div class="modal fade" id="updatePaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Payment Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="updatePaymentForm">
+                {% csrf_token %}
+                <input type="hidden" id="paymentOrderId" name="order_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="paymentStatus" class="form-label">Payment Status *</label>
+                        <select class="form-select" id="paymentStatus" name="payment_status" required>
+                            {% for payment_code, payment_name in payment_status_choices %}
+                            <option value="{{ payment_code }}">{{ payment_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentAmount" class="form-label">Payment Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="paymentAmount" name="payment_amount" step="0.01" min="0">
+                        </div>
+                        <small class="form-text text-muted">Leave empty to keep current amount</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// View toggle functionality
+function switchView(viewType) {
+    const cardView = document.getElementById('orderCardView');
+    const tableView = document.getElementById('orderTableView');
+    const cardBtn = document.getElementById('cardView');
+    const tableBtn = document.getElementById('tableView');
+
+    if (viewType === 'card') {
+        cardView.style.display = 'flex';
+        tableView.style.display = 'none';
+        cardBtn.classList.add('active');
+        tableBtn.classList.remove('active');
+    } else {
+        cardView.style.display = 'none';
+        tableView.style.display = 'block';
+        tableBtn.classList.add('active');
+        cardBtn.classList.remove('active');
+    }
+}
+
+// Apply filters
+function applyFilters() {
+    const restaurantId = document.getElementById('restaurantFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    const paymentStatus = document.getElementById('paymentStatusFilter').value;
+    const dateRange = document.getElementById('dateFilter').value;
+    
+    const url = new URL(window.location);
+    
+    if (restaurantId) {
+        url.searchParams.set('restaurant', restaurantId);
+    } else {
+        url.searchParams.delete('restaurant');
+    }
+    
+    if (status) {
+        url.searchParams.set('status', status);
+    } else {
+        url.searchParams.delete('status');
+    }
+    
+    if (paymentStatus) {
+        url.searchParams.set('payment_status', paymentStatus);
+    } else {
+        url.searchParams.delete('payment_status');
+    }
+    
+    if (dateRange) {
+        url.searchParams.set('date_range', dateRange);
+    } else {
+        url.searchParams.delete('date_range');
+    }
+    
+    window.location.href = url.toString();
+}
+
+// View order details
+async function viewOrderDetails(orderId) {
+    try {
+        const response = await fetch(`{% url "system_admin:order_details" 0 %}`.replace('0', orderId));
+        const html = await response.text();
+        
+        document.getElementById('orderDetailsContent').innerHTML = html;
+        new bootstrap.Modal(document.getElementById('orderDetailsModal')).show();
+    } catch (error) {
+        showAlert('danger', 'Error loading order details: ' + error.message);
+    }
+}
+
+// Update order status
+async function updateOrderStatus(orderId) {
+    try {
+        // Load current order data
+        const response = await fetch(`{% url "system_admin:get_order_status" 0 %}`.replace('0', orderId));
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('orderStatusId').value = orderId;
+            document.getElementById('orderStatusSelect').value = result.status;
+            
+            new bootstrap.Modal(document.getElementById('updateOrderStatusModal')).show();
+        } else {
+            showAlert('danger', result.message);
+        }
+    } catch (error) {
+        showAlert('danger', 'Error loading order status: ' + error.message);
+    }
+}
+
+// Submit order status update
+document.getElementById('updateOrderStatusForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const orderId = document.getElementById('orderStatusId').value;
+    const formData = {
+        status: document.getElementById('orderStatusSelect').value,
+        notes: document.getElementById('statusNotes').value
+    };
+    
+    try {
+        const response = await fetch(`{% url "system_admin:update_order_status" 0 %}`.replace('0', orderId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            showAlert('success', result.message);
+            bootstrap.Modal.getInstance(document.getElementById('updateOrderStatusModal')).hide();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert('danger', result.message);
+        }
+    } catch (error) {
+        showAlert('danger', 'Error updating order status: ' + error.message);
+    }
+});
+
+// Update payment status
+async function updatePaymentStatus(orderId) {
+    try {
+        // Load current payment data
+        const response = await fetch(`{% url "system_admin:get_payment_status" 0 %}`.replace('0', orderId));
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('paymentStatusOrderId').value = orderId;
+            document.getElementById('paymentStatusSelect').value = result.payment_status;
+            
+            new bootstrap.Modal(document.getElementById('updatePaymentStatusModal')).show();
+        } else {
+            showAlert('danger', result.message);
+        }
+    } catch (error) {
+        showAlert('danger', 'Error loading payment status: ' + error.message);
+    }
+}
+
+// Submit payment status update
+document.getElementById('updatePaymentStatusForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const orderId = document.getElementById('paymentStatusOrderId').value;
+    const formData = {
+        payment_status: document.getElementById('paymentStatusSelect').value,
+        notes: document.getElementById('paymentNotes').value
+    };
+    
+    try {
+        const response = await fetch(`{% url "system_admin:update_payment_status" 0 %}`.replace('0', orderId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            showAlert('success', result.message);
+            bootstrap.Modal.getInstance(document.getElementById('updatePaymentStatusModal')).hide();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert('danger', result.message);
+        }
+    } catch (error) {
+        showAlert('danger', 'Error updating payment status: ' + error.message);
+    }
+});
+
+// Cancel order
+async function cancelOrder(orderId, orderNumber) {
+    if (!confirm(`Are you sure you want to cancel order "${orderNumber}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`{% url "system_admin:cancel_order" 0 %}`.replace('0', orderId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            showAlert('success', result.message);
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert('danger', result.message);
+        }
+    } catch (error) {
+        showAlert('danger', 'Error cancelling order: ' + error.message);
+    }
+}
+
+// Alert function
+function showAlert(type, message) {
+    const alertContainer = document.getElementById('alertContainer');
+    const alertId = 'alert-' + Date.now();
+    
+    const alertHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${alertId}">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    alertContainer.insertAdjacentHTML('beforeend', alertHTML);
+    
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+            const alertInstance = bootstrap.Alert.getOrCreateInstance(alertElement);
+            alertInstance.close();
+        }
+    }, 5000);
+}
+
+// Initialize view on page load
+document.addEventListener('DOMContentLoaded', function() {
+    switchView('table'); // Default to table view
+});
+</script>
+{% endblock %}

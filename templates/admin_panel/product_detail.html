@@ -1,0 +1,66 @@
+<div class="row g-4">
+    <div class="col-md-4">
+        {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded">
+        {% else %}
+            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 250px;">
+                <i class="fas fa-image fa-3x text-muted"></i>
+            </div>
+        {% endif %}
+    </div>
+    <div class="col-md-8">
+        <h4 class="fw-bold mb-3">{{ product.name }}</h4>
+        
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6">
+                <label class="form-label text-muted small">Category</label>
+                <div class="fw-semibold">{{ product.main_category.name }} > {{ product.sub_category.name }}</div>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label text-muted small">Price</label>
+                <div class="fw-semibold text-success fs-5">${{ product.price|floatformat:2 }}</div>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label text-muted small">Stock Quantity</label>
+                <div class="fw-semibold">
+                    {% if product.available_in_stock > 20 %}
+                        <span class="badge bg-success">{{ product.available_in_stock }} units</span>
+                    {% elif product.available_in_stock > 5 %}
+                        <span class="badge bg-warning">{{ product.available_in_stock }} units</span>
+                    {% elif product.available_in_stock > 0 %}
+                        <span class="badge bg-danger">{{ product.available_in_stock }} units</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Out of Stock</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label text-muted small">Preparation Time</label>
+                <div class="fw-semibold">
+                    <i class="fas fa-clock me-1"></i>{{ product.preparation_time }} minutes
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label text-muted small">Status</label>
+                <div>
+                    {% if product.is_available %}
+                        <span class="badge bg-success">Available</span>
+                    {% else %}
+                        <span class="badge bg-danger">Unavailable</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label text-muted small">Added</label>
+                <div class="fw-semibold">{{ product.created_at|date:"M d, Y" }}</div>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label text-muted small">Description</label>
+            <div class="border-start border-primary ps-3">
+                {{ product.description|linebreaks }}
+            </div>
+        </div>
+    </div>
+</div>

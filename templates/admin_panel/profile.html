@@ -1,0 +1,301 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Profile - Admin Panel{% endblock %}
+
+{% block page_title %}My Profile{% endblock %}
+{% block page_description %}Manage your account information and settings{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Profile Information Card -->
+    <div class="col-lg-8 col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center">
+                <i class="fas fa-user me-2"></i>
+                <h5 class="mb-0">Profile Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="profileForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_profile">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" 
+                                       value="{{ user.first_name }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" 
+                                       value="{{ user.last_name }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="username" name="username" 
+                                       value="{{ user.username }}" readonly>
+                                <div class="form-text">Username cannot be changed</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ user.email }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phone_number" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                                       value="{{ user.phone_number }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="role" class="form-label">Role</label>
+                                <input type="text" class="form-control" id="role" name="role" 
+                                       value="{{ user.role.get_name_display }}" readonly>
+                                <div class="form-text">Role is assigned by administrators</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="3">{{ user.address }}</textarea>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Update Profile
+                        </button>
+                        <button type="reset" class="btn btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i>Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Account Summary Card -->
+    <div class="col-lg-4 col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center">
+                <i class="fas fa-info-circle me-2"></i>
+                <h5 class="mb-0">Account Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="profile-info">
+                    <div class="info-item mb-3">
+                        <strong>Full Name:</strong>
+                        <div class="text-muted">{{ user.get_full_name|default:"Not set" }}</div>
+                    </div>
+                    
+                    <div class="info-item mb-3">
+                        <strong>Username:</strong>
+                        <div class="text-muted">{{ user.username }}</div>
+                    </div>
+                    
+                    <div class="info-item mb-3">
+                        <strong>Role:</strong>
+                        <span class="badge badge-role bg-primary">{{ user.role.get_name_display }}</span>
+                    </div>
+                    
+                    <div class="info-item mb-3">
+                        <strong>Status:</strong>
+                        {% if user.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="info-item mb-3">
+                        <strong>Member Since:</strong>
+                        <div class="text-muted">{{ user.date_joined|date:"F d, Y" }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <strong>Last Login:</strong>
+                        <div class="text-muted">
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"F d, Y H:i" }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Password Change Card -->
+<div class="row">
+    <div class="col-lg-8 col-md-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <i class="fas fa-lock me-2"></i>
+                <h5 class="mb-0">Change Password</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="passwordForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="change_password">
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="current_password" class="form-label">Current Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="current_password" name="current_password" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="new_password" class="form-label">New Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="new_password" name="new_password" 
+                                       minlength="8" required>
+                                <div class="form-text">Password must be at least 8 characters long</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label">Confirm New Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
+                                       minlength="8" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-key me-1"></i>Change Password
+                        </button>
+                        <button type="reset" class="btn btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i>Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Security Tips Card -->
+    <div class="col-lg-4 col-md-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <i class="fas fa-shield-alt me-2"></i>
+                <h5 class="mb-0">Security Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled security-tips">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Use a strong password with 8+ characters
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Include uppercase, lowercase, numbers and symbols
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Don't share your login credentials
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Change your password regularly
+                    </li>
+                    <li class="mb-0">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Log out when using shared computers
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-role {
+    font-size: 0.85em;
+    padding: 0.5em 0.75em;
+}
+
+.info-item {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.security-tips li {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+
+.card-header h5 {
+    color: var(--primary-color);
+}
+
+#profileForm .form-control:focus,
+#passwordForm .form-control:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 0.2rem rgba(52, 144, 220, 0.25);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Password confirmation validation
+    const passwordForm = document.getElementById('passwordForm');
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    function validatePassword() {
+        if (newPassword.value !== confirmPassword.value) {
+            confirmPassword.setCustomValidity("Passwords don't match");
+        } else {
+            confirmPassword.setCustomValidity('');
+        }
+    }
+    
+    newPassword.addEventListener('change', validatePassword);
+    confirmPassword.addEventListener('keyup', validatePassword);
+    
+    // Form submission confirmation
+    passwordForm.addEventListener('submit', function(e) {
+        if (newPassword.value !== confirmPassword.value) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+            return false;
+        }
+        
+        if (confirm('Are you sure you want to change your password?')) {
+            return true;
+        } else {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

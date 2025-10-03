@@ -1,0 +1,438 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Tables Management - Admin Panel{% endblock %}
+
+{% block page_title %}Tables Management{% endblock %}
+{% block page_description %}Manage restaurant tables and seating arrangements{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-icon {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+    }
+    .table-card {
+        transition: transform 0.2s;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        height: 100%;
+    }
+    .table-card .card-body {
+        padding: 1rem 0.75rem;
+    }
+    .table-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .table-available {
+        border-left: 4px solid #28a745;
+    }
+    .table-occupied {
+        border-left: 4px solid #dc3545;
+    }
+    .action-buttons .btn {
+        margin: 0 1px;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.8rem;
+    }
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    .table-card h5 {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+    .table-card .card-text {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1">Tables Management</h4>
+                    <p class="text-muted mb-0">Manage restaurant tables and seating arrangements</p>
+                </div>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTableModal">
+                    <i class="fas fa-plus"></i> Add Table
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tables Grid -->
+    <div class="row" id="tablesContainer">
+        {% for table in tables %}
+        <div class="col-xxl-2 col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3" data-table-id="{{ table.id }}">
+            <div class="card table-card {% if table.is_available %}table-available{% else %}table-occupied{% endif %}">
+                <div class="card-body text-center">
+                    <div class="table-icon text-primary">
+                        <i class="fas fa-chair"></i>
+                    </div>
+                    <h5 class="card-title mb-1">Table {{ table.tbl_no }}</h5>
+                    <p class="card-text text-muted mb-2">
+                        <i class="fas fa-users"></i> Capacity: {{ table.capacity }}
+                    </p>
+                    <div class="mb-2">
+                        <span class="badge status-badge {% if table.is_available %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if table.is_available %}Available{% else %}Occupied{% endif %}
+                        </span>
+                    </div>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-sm btn-outline-primary edit-table-btn" 
+                                data-table-id="{{ table.id }}" title="Edit Table">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-{% if table.is_available %}warning{% else %}success{% endif %} toggle-status-btn" 
+                                data-table-id="{{ table.id }}" title="{% if table.is_available %}Mark as Occupied{% else %}Mark as Available{% endif %}">
+                            <i class="fas fa-{% if table.is_available %}lock{% else %}unlock{% endif %}"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger delete-table-btn" 
+                                data-table-id="{{ table.id }}" title="Delete Table">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12" id="noTablesMessage">
+            <div class="text-center py-5">
+                <i class="fas fa-chair text-muted" style="font-size: 4rem;"></i>
+                <h4 class="mt-3 text-muted">No Tables Found</h4>
+                <p class="text-muted">Start by adding your first table to the restaurant.</p>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTableModal">
+                    <i class="fas fa-plus"></i> Add First Table
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Add Table Modal -->
+<div class="modal fade" id="addTableModal" tabindex="-1" aria-labelledby="addTableModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTableModalLabel">
+                    <i class="fas fa-plus-circle"></i> Add New Table
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addTableForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="addTableNo" class="form-label">Table Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="addTableNo" name="tbl_no" required placeholder="e.g., T01, T02, 1, 2, etc.">
+                        <div class="invalid-feedback" id="addTableNoError"></div>
+                        <small class="form-text text-muted">Enter table identifier (letters and numbers allowed)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="addTableCapacity" class="form-label">Capacity <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="addTableCapacity" name="capacity" required min="1" max="20">
+                        <div class="invalid-feedback" id="addTableCapacityError"></div>
+                        <small class="form-text text-muted">Maximum number of people this table can accommodate</small>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="addTableAvailable" name="is_available" checked>
+                            <label class="form-check-label" for="addTableAvailable">
+                                Table is available
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Add Table
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Table Modal -->
+<div class="modal fade" id="editTableModal" tabindex="-1" aria-labelledby="editTableModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editTableModalLabel">
+                    <i class="fas fa-edit"></i> Edit Table
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editTableForm">
+                {% csrf_token %}
+                <input type="hidden" id="editTableId" name="table_id">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="editTableNo" class="form-label">Table Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editTableNo" name="tbl_no" required placeholder="e.g., T01, T02, 1, 2, etc.">
+                        <div class="invalid-feedback" id="editTableNoError"></div>
+                        <small class="form-text text-muted">Enter table identifier (letters and numbers allowed)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="editTableCapacity" class="form-label">Capacity <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="editTableCapacity" name="capacity" required min="1" max="20">
+                        <div class="invalid-feedback" id="editTableCapacityError"></div>
+                        <small class="form-text text-muted">Maximum number of people this table can accommodate</small>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="editTableAvailable" name="is_available">
+                            <label class="form-check-label" for="editTableAvailable">
+                                Table is available
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Table
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteTableModal" tabindex="-1" aria-labelledby="deleteTableModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteTableModalLabel">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> Confirm Delete
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteTableInfo"></strong>?</p>
+                <p class="text-muted mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteTable">
+                    <i class="fas fa-trash"></i> Delete Table
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Add Table Form Submit
+    $('#addTableForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: '{% url "admin_panel:add_table" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    $('#addTableModal').modal('hide');
+                    location.reload();
+                } else {
+                    // Handle form errors
+                    if (response.errors) {
+                        Object.keys(response.errors).forEach(function(field) {
+                            const errorDiv = $('#add' + field.charAt(0).toUpperCase() + field.slice(1).replace('_', '') + 'Error');
+                            const input = $('#add' + field.charAt(0).toUpperCase() + field.slice(1).replace('_', ''));
+                            
+                            errorDiv.text(response.errors[field][0]);
+                            input.addClass('is-invalid');
+                        });
+                    }
+                    if (response.message) {
+                        showAlert('danger', response.message);
+                    }
+                }
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred while adding the table.');
+            }
+        });
+    });
+
+    // Edit Table Button Click
+    $('.edit-table-btn').on('click', function() {
+        const tableId = $(this).data('table-id');
+        
+        $.ajax({
+            url: '{% url "admin_panel:get_table" %}',
+            type: 'GET',
+            data: { table_id: tableId },
+            success: function(response) {
+                if (response.success) {
+                    const table = response.table;
+                    $('#editTableId').val(table.id);
+                    $('#editTableNo').val(table.tbl_no);
+                    $('#editTableCapacity').val(table.capacity);
+                    $('#editTableAvailable').prop('checked', table.is_available);
+                    
+                    $('#editTableModal').modal('show');
+                } else {
+                    showAlert('danger', response.message || 'Failed to load table data.');
+                }
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred while loading table data.');
+            }
+        });
+    });
+
+    // Edit Table Form Submit
+    $('#editTableForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: '{% url "admin_panel:update_table" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    $('#editTableModal').modal('hide');
+                    location.reload();
+                } else {
+                    // Handle form errors
+                    if (response.errors) {
+                        Object.keys(response.errors).forEach(function(field) {
+                            const errorDiv = $('#edit' + field.charAt(0).toUpperCase() + field.slice(1).replace('_', '') + 'Error');
+                            const input = $('#edit' + field.charAt(0).toUpperCase() + field.slice(1).replace('_', ''));
+                            
+                            errorDiv.text(response.errors[field][0]);
+                            input.addClass('is-invalid');
+                        });
+                    }
+                    if (response.message) {
+                        showAlert('danger', response.message);
+                    }
+                }
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred while updating the table.');
+            }
+        });
+    });
+
+    // Toggle Status Button Click
+    $('.toggle-status-btn').on('click', function() {
+        const tableId = $(this).data('table-id');
+        
+        $.ajax({
+            url: '{% url "admin_panel:toggle_table_status" %}',
+            type: 'POST',
+            data: {
+                'table_id': tableId,
+                'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    showAlert('danger', response.message || 'Failed to update table status.');
+                }
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred while updating table status.');
+            }
+        });
+    });
+
+    // Delete Table Button Click
+    $('.delete-table-btn').on('click', function() {
+        const tableId = $(this).data('table-id');
+        const tableCard = $(this).closest('.card');
+        const tableNo = tableCard.find('.card-title').text();
+        
+        $('#deleteTableInfo').text(tableNo);
+        $('#confirmDeleteTable').data('table-id', tableId);
+        $('#deleteTableModal').modal('show');
+    });
+
+    // Confirm Delete Table
+    $('#confirmDeleteTable').on('click', function() {
+        const tableId = $(this).data('table-id');
+        
+        $.ajax({
+            url: '{% url "admin_panel:delete_table" %}',
+            type: 'POST',
+            data: {
+                'table_id': tableId,
+                'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#deleteTableModal').modal('hide');
+                    location.reload();
+                } else {
+                    showAlert('danger', response.message || 'Failed to delete table.');
+                }
+            },
+            error: function() {
+                showAlert('danger', 'An error occurred while deleting the table.');
+            }
+        });
+    });
+
+    // Clear form errors when modal is closed
+    $('.modal').on('hidden.bs.modal', function() {
+        $(this).find('.is-invalid').removeClass('is-invalid');
+        $(this).find('.invalid-feedback').text('');
+        $(this).find('form')[0].reset();
+    });
+
+    // Show alert function
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Remove existing alerts
+        $('.alert').remove();
+        
+        // Add new alert at the top of the container
+        $('.container-fluid').prepend(alertHtml);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}
