@@ -611,7 +611,7 @@ def kitchen_dashboard(request):
         
         if owner_filter:
             # Filter orders where the customer belongs to the same owner as kitchen staff
-            base_queryset = base_queryset.filter(ordered_by__owner=owner_filter)
+            base_queryset = base_queryset.filter(table_info__owner=owner_filter)
         # If administrator or no owner filter, show all orders
         
     except PermissionDenied:
