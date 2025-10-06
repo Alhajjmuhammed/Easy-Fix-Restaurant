@@ -611,7 +611,7 @@ def kitchen_dashboard(request):
         
         if owner_filter:
             # Filter orders where the customer belongs to the same owner as kitchen staff
-            base_queryset = base_queryset.filter(ordered_by__owner=owner_filter)
+            base_queryset = base_queryset.filter(table_info__owner=owner_filter)
         # If administrator or no owner filter, show all orders
         
     except PermissionDenied:
@@ -691,7 +691,7 @@ def update_order_status(request, order_id):
         
         # Get order with owner filtering
         if owner_filter:
-            order = get_object_or_404(Order, id=order_id, ordered_by__owner=owner_filter)
+            order = get_object_or_404(Order, id=order_id, table_info__owner=owner_filter)
         else:
             order = get_object_or_404(Order, id=order_id)
         
@@ -789,7 +789,7 @@ def cancel_order(request, order_id):
         
         # Get order with owner filtering
         if owner_filter:
-            order = get_object_or_404(Order, id=order_id, ordered_by__owner=owner_filter)
+            order = get_object_or_404(Order, id=order_id, table_info__owner=owner_filter)
         else:
             order = get_object_or_404(Order, id=order_id)
     except PermissionDenied:
@@ -870,7 +870,7 @@ def customer_cancel_order(request, order_id):
         try:
             owner_filter = get_owner_filter(request.user)
             if owner_filter:
-                order = get_object_or_404(Order, id=order_id, ordered_by__owner=owner_filter)
+                order = get_object_or_404(Order, id=order_id, table_info__owner=owner_filter)
             else:
                 order = get_object_or_404(Order, id=order_id)
         except PermissionDenied:
@@ -955,7 +955,7 @@ def kitchen_order_detail(request, order_id):
         
         # Get order with owner filtering
         if owner_filter:
-            order = get_object_or_404(Order, id=order_id, ordered_by__owner=owner_filter)
+            order = get_object_or_404(Order, id=order_id, table_info__owner=owner_filter)
         else:
             order = get_object_or_404(Order, id=order_id)
     except PermissionDenied:

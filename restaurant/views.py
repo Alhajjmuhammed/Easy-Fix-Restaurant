@@ -114,13 +114,13 @@ def owner_dashboard(request):
         # Dashboard statistics - filtered by owner
         if owner_filter:
             total_products = Product.objects.filter(main_category__owner=owner_filter).count()
-            total_orders = Order.objects.filter(ordered_by__owner=owner_filter).count()
-            pending_orders = Order.objects.filter(status='pending', ordered_by__owner=owner_filter).count()
+            total_orders = Order.objects.filter(table_info__owner=owner_filter).count()
+            pending_orders = Order.objects.filter(status='pending', table_info__owner=owner_filter).count()
             total_staff = User.objects.filter(owner=owner_filter).exclude(role__name='customer').count()
             
             # Recent orders - filtered by owner
             recent_orders = Order.objects.filter(
-                ordered_by__owner=owner_filter
+                table_info__owner=owner_filter
             ).select_related('table_info', 'ordered_by').order_by('-created_at')[:5]
         else:
             # Administrator sees all data
