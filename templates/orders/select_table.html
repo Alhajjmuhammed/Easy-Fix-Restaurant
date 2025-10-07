@@ -1,54 +1,268 @@
 {% extends 'base.html' %}
 
-{% block title %}Select Table - {{ user.get_restaurant_name }}{% endblock %}
+{% block title %}Select Table - {{ restaurant_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-card {
+        border: 2px solid #e9ecef;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .table-card:hover {
+        border-color: #007bff;
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,123,255,0.15);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .table-card.available {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-color: #28a745;
+    }
+    
+    .table-card.available:hover {
+        border-color: #20c997;
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    }
+    
+    .table-card.occupied {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        border-color: #dc3545;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    .table-card.occupied:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .table-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #495057;
+    }
+    
+    .table-status {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .table-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .available .table-icon {
+        color: #28a745;
+    }
+    
+    .occupied .table-icon {
+        color: #dc3545;
+    }
+    
+    .available .table-status {
+        color: #28a745;
+    }
+    
+    .occupied .table-status {
+        color: #dc3545;
+    }
+    
+    @media (max-width: 576px) {
+        .table-card {
+            min-height: 60px;
+        }
+        
+        .table-number {
+            font-size: 0.85rem;
+        }
+        
+        .table-icon {
+            font-size: 1rem;
+            margin-bottom: 0.1rem;
+        }
+        
+        .table-status {
+            font-size: 0.65rem;
+        }
+        
+        .table-card small {
+            font-size: 0.6rem !important;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow-lg">
-            <div class="card-body p-5 text-center">
-                <div class="mb-4">
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <div class="mb-3">
                     <i class="bi bi-table display-1 text-primary"></i>
-                    <h2 class="mt-3 mb-2">Welcome{% if restaurant %} to {{ restaurant.restaurant_name }}{% endif %}!</h2>
-                    {% if restaurant %}
-                        <div class="alert alert-success mb-3">
-                            <i class="bi bi-qr-code"></i> Restaurant selected via QR code
-                        </div>
-                    {% endif %}
-                    <p class="text-muted">Please enter your table number to start ordering</p>
                 </div>
-
-                <form method="post">
-                    {% csrf_token %}
-                    
-                    <div class="mb-4">
-                        <label for="{{ form.table_number.id_for_label }}" class="form-label h5">
-                            {{ form.table_number.label }}
-                        </label>
-                        {{ form.table_number }}
-                        {% if form.table_number.errors %}
-                            <div class="text-danger mt-2">
-                                <i class="bi bi-exclamation-circle"></i>
-                                {{ form.table_number.errors.0 }}
-                            </div>
-                        {% endif %}
+                <h2 class="mb-3">Welcome{% if restaurant %} to {{ restaurant.restaurant_name }}{% endif %}!</h2>
+                {% if restaurant %}
+                    <div class="alert alert-success d-inline-block">
+                        <i class="bi bi-qr-code"></i> Restaurant selected via QR code
                     </div>
+                {% endif %}
+                <p class="text-muted h5">Please select your table to start ordering</p>
+            </div>
 
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-arrow-right-circle"></i> Continue to Menu
-                        </button>
+            {% if available_tables %}
+                <form method="post" id="tableSelectionForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="table_id" id="selectedTableId">
+                    
+                    <!-- Tables Grid -->
+                    <div class="row g-3 mb-4">
+                        {% for table in available_tables %}
+                            <div class="col-3 col-md-4 col-lg-3 col-xl-2">
+                                <div class="table-card {% if table.is_truly_available %}available{% else %}occupied{% endif %}" 
+                                     {% if table.is_truly_available %}onclick="selectTable({{ table.id }}, '{{ table.tbl_no }}')"{% endif %}>
+                                    <div class="text-center">
+                                        <div class="table-icon">
+                                            <i class="bi bi-table"></i>
+                                        </div>
+                                        <div class="table-number">{{ table.tbl_no }}</div>
+                                        <div class="table-status">
+                                            {% if table.is_truly_available %}
+                                                Available
+                                            {% else %}
+                                                Occupied
+                                            {% endif %}
+                                        </div>
+                                        {% if table.capacity %}
+                                            <small class="text-muted d-block mt-1">
+                                                <i class="bi bi-people"></i> {{ table.capacity }} seats
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
                     </div>
                 </form>
 
-                <div class="mt-4">
-                    <small class="text-muted">
-                        <i class="bi bi-info-circle"></i>
-                        Look for your table number on the table tent or ask our staff for assistance.
-                    </small>
+                <!-- Legend -->
+                <div class="row justify-content-center">
+                    <div class="col-auto">
+                        <div class="d-flex gap-4 text-center">
+                            <div>
+                                <i class="bi bi-check-circle text-success fs-4"></i>
+                                <div><small class="text-muted">Available</small></div>
+                            </div>
+                            <div>
+                                <i class="bi bi-x-circle text-danger fs-4"></i>
+                                <div><small class="text-muted">Occupied</small></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                
+            {% else %}
+                <!-- No Tables Available -->
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle display-1 text-warning mb-3"></i>
+                    <h4>No Tables Available</h4>
+                    <p class="text-muted">Please contact our staff for assistance.</p>
+                    {% if restaurant %}
+                        <a href="{% url 'restaurant:home' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-left"></i> Back to Restaurant
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Help Text -->
+            <div class="text-center mt-4">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i>
+                    Can't find your table? Ask our staff for assistance.
+                </small>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Selection Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-table text-primary"></i> Confirm Table Selection
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-table display-1 text-primary"></i>
+                </div>
+                <h4>Table <span id="confirmTableNumber"></span></h4>
+                <p class="text-muted">You've selected this table for your order. Continue to browse the menu?</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-arrow-left"></i> Go Back
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmSelection()">
+                    <i class="bi bi-arrow-right-circle"></i> Continue to Menu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedTable = null;
+let confirmationModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+});
+
+function selectTable(tableId, tableNumber) {
+    selectedTable = {id: tableId, number: tableNumber};
+    document.getElementById('selectedTableId').value = tableId;
+    document.getElementById('confirmTableNumber').textContent = tableNumber;
+    confirmationModal.show();
+}
+
+function confirmSelection() {
+    if (selectedTable) {
+        document.getElementById('tableSelectionForm').submit();
+    }
+}
+
+// Add visual feedback for selected table
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.table-card.available')) {
+        // Remove previous selection
+        document.querySelectorAll('.table-card').forEach(card => {
+            card.classList.remove('border-primary', 'border-3');
+        });
+        
+        // Add selection to clicked table
+        e.target.closest('.table-card').classList.add('border-primary', 'border-3');
+    }
+});
+</script>
 {% endblock %}

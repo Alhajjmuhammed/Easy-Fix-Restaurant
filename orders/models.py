@@ -90,6 +90,39 @@ class Order(models.Model):
         self.total_amount = total
         return total
     
+    def is_table_occupying(self):
+        """Check if this order should occupy the table"""
+        # Table is occupied if order is active (not cancelled or paid)
+        return self.status not in ['cancelled', 'customer_refused', 'kitchen_error', 'quality_issue', 'wasted'] and self.payment_status != 'paid'
+    
+    def occupy_table(self):
+        """Mark the table as occupied by this order"""
+        if self.is_table_occupying():
+            self.table_info.is_available = False
+            self.table_info.save()
+    
+    def release_table(self):
+        """Release the table when order is completed or cancelled"""
+        # Check if any other active orders are using this table
+        other_active_orders = Order.objects.filter(
+            table_info=self.table_info,
+            status__in=['pending', 'confirmed', 'preparing', 'ready', 'served'],
+            payment_status__in=['unpaid', 'partial']
+        ).exclude(id=self.id)
+        
+        # Only release table if no other active orders
+        if not other_active_orders.exists():
+            self.table_info.is_available = True
+            self.table_info.save()
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        # Occupy table when order is created
+        if is_new:
+            self.occupy_table()
+    
     class Meta:
         ordering = ['-created_at']
 

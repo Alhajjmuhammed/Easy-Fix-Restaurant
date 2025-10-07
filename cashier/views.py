@@ -163,6 +163,8 @@ def process_payment(request, order_id):
         
         if total_paid >= order.total_amount:
             order.payment_status = 'paid'
+            # Release the table when order is fully paid
+            order.release_table()
         elif total_paid > 0:
             order.payment_status = 'partial'
         else:
@@ -222,10 +224,16 @@ def void_payment(request, payment_id):
         
         if total_paid >= order.total_amount:
             order.payment_status = 'paid'
+            # Release the table when order is fully paid
+            order.release_table()
         elif total_paid > 0:
             order.payment_status = 'partial'
+            # Re-occupy table if payment becomes partial after void
+            order.occupy_table()
         else:
             order.payment_status = 'unpaid'
+            # Re-occupy table if payment becomes unpaid after void
+            order.occupy_table()
         
         order.save()
         
@@ -265,6 +273,8 @@ def cancel_order(request, order_id):
         order.status = 'cancelled'
         order.payment_status = 'unpaid'
         order.reason_if_cancelled = cancel_reason
+        # Release the table when order is cancelled
+        order.release_table()
         order.save()
         
         return JsonResponse({

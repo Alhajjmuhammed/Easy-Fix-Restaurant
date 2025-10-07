@@ -16,6 +16,22 @@ class TableInfo(models.Model):
     def __str__(self):
         return f"Table {self.tbl_no} ({self.owner.restaurant_name})"
     
+    def get_active_orders(self):
+        """Get active orders for this table"""
+        return self.orders.filter(
+            status__in=['pending', 'confirmed', 'preparing', 'ready', 'served'],
+            payment_status__in=['unpaid', 'partial']
+        )
+    
+    def is_truly_available(self):
+        """Check if table is truly available (no active orders)"""
+        return self.is_available and not self.get_active_orders().exists()
+    
+    def get_occupying_order(self):
+        """Get the current order occupying this table"""
+        active_orders = self.get_active_orders()
+        return active_orders.first() if active_orders.exists() else None
+    
     class Meta:
         verbose_name = "Table Information"
         verbose_name_plural = "Tables Information"

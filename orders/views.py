@@ -20,7 +20,7 @@ from accounts.models import User, get_owner_filter, check_owner_permission
 channel_layer = get_channel_layer()
 
 def select_table(request):
-    """Customer selects table number before ordering"""
+    """Customer selects table from available tables in restaurant"""
     restaurant = None
     
     # For customer care users, use their assigned restaurant
@@ -41,20 +41,45 @@ def select_table(request):
                 return redirect('accounts:login')
     
     if request.method == 'POST':
-        form = TableSelectionForm(request.POST, user=request.user, restaurant=restaurant)
-        if form.is_valid():
-            table_number = form.cleaned_data['table_number']
-            request.session['selected_table'] = table_number
-            # Store the restaurant owner for this session
-            if restaurant:
-                request.session['selected_restaurant_owner'] = restaurant.id
-            messages.success(request, f'Table {table_number} selected. You can now browse the menu.')
-            return redirect('restaurant:menu')
-    else:
-        form = TableSelectionForm(user=request.user, restaurant=restaurant)
+        # Handle table selection from visual interface
+        selected_table_id = request.POST.get('table_id')
+        if selected_table_id:
+            try:
+                # Get the table by ID and verify it belongs to the restaurant
+                if restaurant:
+                    table = TableInfo.objects.get(id=selected_table_id, owner=restaurant)
+                else:
+                    owner_filter = get_owner_filter(request.user)
+                    table = TableInfo.objects.get(id=selected_table_id, owner=owner_filter)
+                
+                if table.is_truly_available():
+                    request.session['selected_table'] = table.tbl_no
+                    request.session['selected_table_id'] = table.id
+                    # Store the restaurant owner for this session
+                    if restaurant:
+                        request.session['selected_restaurant_owner'] = restaurant.id
+                    messages.success(request, f'Table {table.tbl_no} selected. You can now browse the menu.')
+                    return redirect('restaurant:menu')
+                else:
+                    occupying_order = table.get_occupying_order()
+                    if occupying_order:
+                        messages.error(request, f'Table {table.tbl_no} is currently occupied by Order #{occupying_order.order_number}.')
+                    else:
+                        messages.error(request, f'Table {table.tbl_no} is currently not available.')
+            except TableInfo.DoesNotExist:
+                messages.error(request, 'Invalid table selection. Please try again.')
+    
+    # Get all available tables for the restaurant
+    available_tables = []
+    if restaurant:
+        available_tables = TableInfo.objects.filter(owner=restaurant).order_by('tbl_no')
+    elif request.user.is_authenticated:
+        owner_filter = get_owner_filter(request.user)
+        if owner_filter:
+            available_tables = TableInfo.objects.filter(owner=owner_filter).order_by('tbl_no')
     
     context = {
-        'form': form,
+        'available_tables': available_tables,
         'restaurant': restaurant,
         'restaurant_name': request.session.get('selected_restaurant_name', 'Restaurant')
     }
@@ -664,9 +689,14 @@ def confirm_order(request, order_id):
         order.confirmed_by = request.user
         order.save()
         
+        # Mark table as occupied when order is confirmed
+        table = order.table_info
+        table.is_available = False
+        table.save()
+        
         return JsonResponse({
             'success': True,
-            'message': f'Order {order.order_number} confirmed successfully!',
+            'message': f'Order {order.order_number} confirmed successfully! Table {table.tbl_no} is now occupied.',
             'new_status': order.get_status_display()
         })
         
@@ -722,6 +752,11 @@ def update_order_status(request, order_id):
         order.status = new_status
         if new_status == 'confirmed' and not order.confirmed_by:
             order.confirmed_by = request.user
+        
+        # Release table if order is cancelled through status change
+        if new_status == 'cancelled':
+            order.release_table()
+            
         order.save()
 
         # Send real-time notifications
@@ -830,6 +865,8 @@ def cancel_order(request, order_id):
                     # Update order
                     order.status = 'cancelled'
                     order.reason_if_cancelled = reason
+                    # Release the table when order is cancelled
+                    order.release_table()
                     order.save()
                     
                     return JsonResponse({
@@ -853,6 +890,8 @@ def cancel_order(request, order_id):
                 # Update order
                 order.status = 'cancelled'
                 order.reason_if_cancelled = form.cleaned_data['reason']
+                # Release the table when order is cancelled
+                order.release_table()
                 order.save()
                 
                 messages.success(request, f'Order {order.order_number} cancelled successfully.')
@@ -910,6 +949,8 @@ def customer_cancel_order(request, order_id):
                     # Update order
                     order.status = 'cancelled'
                     order.reason_if_cancelled = reason
+                    # Release the table when order is cancelled
+                    order.release_table()
                     order.save()
                     
                     return JsonResponse({
@@ -934,6 +975,8 @@ def customer_cancel_order(request, order_id):
                 # Update order
                 order.status = 'cancelled'
                 order.reason_if_cancelled = reason if reason else 'Cancelled by customer'
+                # Release the table when order is cancelled
+                order.release_table()
                 order.save()
                 
                 messages.success(request, f'Order {order.order_number} cancelled successfully.')

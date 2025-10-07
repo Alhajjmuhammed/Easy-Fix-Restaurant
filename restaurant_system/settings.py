@@ -40,7 +40,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',  # Disabled for development
+    'django.middleware.csrf.CsrfViewMiddleware',  # Re-enabled for security
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -123,6 +123,29 @@ LOGIN_REDIRECT_URL = '/'
 # Channels Configuration for WebSockets
 ASGI_APPLICATION = 'restaurant_system.asgi.application'
 
+# Security Headers Configuration
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow iframes from same origin
+
+# Cross-Origin Policies
+CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+CROSS_ORIGIN_EMBEDDER_POLICY = 'require-corp'
+
+# CSRF Configuration for development
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for AJAX
+CSRF_COOKIE_SECURE = False    # Set to True in production with HTTPS
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://0.0.0.0:8000',
+]
+
+# Session Configuration
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+
 # Try Redis first, fall back to in-memory channels for development
 try:
     import redis
@@ -148,3 +171,22 @@ except (ImportError, redis.ConnectionError, redis.ResponseError):
     }
     print("⚠ Using in-memory channels (development only) - Install and start Redis for production")
 LOGOUT_REDIRECT_URL = '/'
+
+# Custom Security Headers Middleware Class
+class SecurityHeadersMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        
+        # Add security headers
+        response['Cross-Origin-Opener-Policy'] = 'same-origin'
+        response['Cross-Origin-Embedder-Policy'] = 'require-corp'
+        response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        
+        return response
+
+# Add custom middleware to the middleware stack
+MIDDLEWARE.insert(1, 'restaurant_system.settings.SecurityHeadersMiddleware')
