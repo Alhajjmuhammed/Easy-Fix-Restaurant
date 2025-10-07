@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+
+{% block title %}Receipt - Order #{{ order.order_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .receipt-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .receipt-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .receipt-body {
+        padding: 2rem;
+    }
+    
+    .receipt-section {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .receipt-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
+    .order-items {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .item-row:last-child {
+        border-bottom: none;
+    }
+    
+    .item-name {
+        font-weight: 500;
+        flex: 1;
+    }
+    
+    .item-qty {
+        color: #6c757d;
+        margin: 0 1rem;
+        min-width: 60px;
+        text-align: center;
+    }
+    
+    .item-price {
+        font-weight: 600;
+        min-width: 80px;
+        text-align: right;
+    }
+    
+    .total-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    
+    .total-row.grand-total {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #28a745;
+        border-top: 2px solid #28a745;
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+        margin-bottom: 0;
+    }
+    
+    .payment-info {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 1rem;
+        border-radius: 4px;
+    }
+    
+    @media (max-width: 768px) {
+        .receipt-container {
+            margin: 1rem;
+            border-radius: 8px;
+        }
+        
+        .receipt-header {
+            padding: 1.5rem;
+        }
+        
+        .receipt-body {
+            padding: 1.5rem;
+        }
+        
+        .item-row {
+            flex-wrap: wrap;
+        }
+        
+        .item-qty, .item-price {
+            min-width: auto;
+        }
+    }
+    
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        
+        .receipt-container, .receipt-container * {
+            visibility: visible;
+        }
+        
+        .receipt-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            box-shadow: none;
+        }
+        
+        .no-print {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="receipt-container">
+        <!-- Receipt Header -->
+        <div class="receipt-header">
+            <h2 class="mb-1">
+                <i class="bi bi-receipt"></i> Receipt
+            </h2>
+            <p class="mb-0">{{ restaurant_name }}</p>
+            <small>Order #{{ order.order_number }}</small>
+        </div>
+        
+        <!-- Receipt Body -->
+        <div class="receipt-body">
+            <!-- Order Information -->
+            <div class="receipt-section">
+                <h5 class="mb-3">
+                    <i class="bi bi-info-circle text-primary"></i> Order Information
+                </h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Order Number:</strong> {{ order.order_number }}</p>
+                        <p><strong>Table:</strong> {{ order.table_info.tbl_no }}</p>
+                        <p><strong>Date & Time:</strong> {{ order.created_at|date:"M d, Y - g:i A" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Customer:</strong> {{ order.ordered_by.get_full_name|default:order.ordered_by.username }}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-success">{{ order.get_status_display }}</span>
+                        </p>
+                        <p><strong>Payment:</strong> 
+                            <span class="badge bg-success">{{ order.get_payment_status_display }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Order Items -->
+            <div class="receipt-section">
+                <h5 class="mb-3">
+                    <i class="bi bi-basket text-primary"></i> Order Items
+                </h5>
+                <div class="order-items">
+                    {% for item in order.order_items.all %}
+                        <div class="item-row">
+                            <div class="item-name">{{ item.product.name }}</div>
+                            <div class="item-qty">{{ item.quantity }}x</div>
+                            <div class="item-price">${{ item.get_total_price|floatformat:2 }}</div>
+                        </div>
+                        {% if item.special_notes %}
+                            <div class="text-muted small ps-2">
+                                <i class="bi bi-chat-text"></i> {{ item.special_notes }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Order Totals -->
+            <div class="receipt-section">
+                <h5 class="mb-3">
+                    <i class="bi bi-calculator text-primary"></i> Order Summary
+                </h5>
+                <div class="total-section">
+                    <div class="total-row">
+                        <span>Subtotal:</span>
+                        <span>${{ subtotal|floatformat:2 }}</span>
+                    </div>
+                    {% if discount_amount > 0 %}
+                        <div class="total-row text-success">
+                            <span>Discount:</span>
+                            <span>-${{ discount_amount|floatformat:2 }}</span>
+                        </div>
+                    {% endif %}
+                    <div class="total-row">
+                        <span>Tax ({{ order.tax_rate }}%):</span>
+                        <span>${{ tax_amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="total-row grand-total">
+                        <span>Total Paid:</span>
+                        <span>${{ total_amount|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Information -->
+            <div class="receipt-section">
+                <h5 class="mb-3">
+                    <i class="bi bi-credit-card text-primary"></i> Payment Information
+                </h5>
+                {% for payment in payments %}
+                    <div class="payment-info mb-2">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Payment Method:</strong> {{ payment.get_payment_method_display }}</p>
+                                <p class="mb-1"><strong>Amount:</strong> ${{ payment.amount|floatformat:2 }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Processed by:</strong> {{ payment.processed_by.get_full_name|default:payment.processed_by.username }}</p>
+                                <p class="mb-1"><strong>Date:</strong> {{ payment.created_at|date:"M d, Y - g:i A" }}</p>
+                            </div>
+                        </div>
+                        {% if payment.reference_number %}
+                            <p class="mb-1"><strong>Reference:</strong> {{ payment.reference_number }}</p>
+                        {% endif %}
+                        {% if payment.notes %}
+                            <p class="mb-0"><strong>Notes:</strong> {{ payment.notes }}</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            
+            {% if order.special_instructions %}
+                <!-- Special Instructions -->
+                <div class="receipt-section">
+                    <h5 class="mb-3">
+                        <i class="bi bi-chat-square-text text-primary"></i> Special Instructions
+                    </h5>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> {{ order.special_instructions }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="text-center mt-4 no-print">
+        <a href="{% url 'orders:my_orders' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to My Orders
+        </a>
+    </div>
+</div>
+
+<!-- Thank You Footer -->
+<div class="text-center mt-4 mb-4">
+    <div class="alert alert-success d-inline-block">
+        <i class="bi bi-heart-fill text-danger"></i>
+        <strong>Thank you for dining with us!</strong>
+        <i class="bi bi-heart-fill text-danger"></i>
+    </div>
+</div>
+{% endblock %}
