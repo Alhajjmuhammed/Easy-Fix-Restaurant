@@ -145,13 +145,27 @@ CHANNEL_LAYERS = {
 
 # Security Settings for Production
 SECURE_BROWSER_XSS_FILTER = True
-X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow iframes from same origin
+
+# Cross-Origin Policies
+CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+CROSS_ORIGIN_EMBEDDER_POLICY = 'require-corp'
 
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
 CSRF_COOKIE_SECURE = False    # Set to True when using HTTPS
+CSRF_TRUSTED_ORIGINS = [
+    'http://24.199.116.165',
+    'https://24.199.116.165',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+
+# Session Configuration
 SESSION_COOKIE_SECURE = False  # Set to True when using HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 # HTTPS Settings (uncomment when SSL is configured)
 # SECURE_SSL_REDIRECT = True
@@ -198,3 +212,22 @@ LOGGING = {
 
 # Create logs directory if it doesn't exist
 os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+
+# Custom Security Headers Middleware Class
+class SecurityHeadersMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        
+        # Add security headers
+        response['Cross-Origin-Opener-Policy'] = 'same-origin'
+        response['Cross-Origin-Embedder-Policy'] = 'require-corp'
+        response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        
+        return response
+
+# Add custom middleware to the middleware stack
+MIDDLEWARE.insert(1, 'restaurant_system.production_settings.SecurityHeadersMiddleware')
