@@ -1251,3 +1251,50 @@ def customer_care_receipt_management(request):
     }
     
     return render(request, 'orders/customer_care_receipt_management.html', context)
+
+@login_required
+def view_receipt(request, order_id):
+    """View receipt for a paid order"""
+    # Get the order - ensure user has permission to view it
+    if request.user.is_customer():
+        order = get_object_or_404(Order, id=order_id, ordered_by=request.user)
+    elif request.user.is_customer_care():
+        try:
+            owner_filter = get_owner_filter(request.user)
+            if owner_filter:
+                order = get_object_or_404(Order, id=order_id, table_info__owner=owner_filter)
+            else:
+                order = get_object_or_404(Order, id=order_id)
+        except PermissionDenied:
+            messages.error(request, 'You are not associated with any restaurant.')
+            return redirect('orders:my_orders')
+    else:
+        messages.error(request, 'Access denied.')
+        return redirect('orders:my_orders')
+    
+    # Check if order is paid
+    if order.payment_status != 'paid':
+        messages.error(request, 'Receipt is only available for paid orders.')
+        return redirect('orders:my_orders')
+    
+    # Get payment information
+    payments = order.payments.filter(is_voided=False).select_related('processed_by').order_by('created_at')
+    
+    # Calculate totals
+    subtotal = order.get_subtotal()
+    tax_amount = order.get_tax_amount()
+    discount_amount = order.get_total_discount()
+    total_amount = order.total_amount
+    
+    context = {
+        'order': order,
+        'payments': payments,
+        'subtotal': subtotal,
+        'tax_amount': tax_amount,
+        'discount_amount': discount_amount,
+        'total_amount': total_amount,
+        'restaurant_name': order.table_info.owner.restaurant_name,
+        'restaurant_owner': order.table_info.owner,
+    }
+    
+    return render(request, 'orders/receipt.html', context)
