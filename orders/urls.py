@@ -34,4 +34,8 @@ urlpatterns = [
     
     # Customer care management
     path('customer-care/', views.customer_care_dashboard, name='customer_care_dashboard'),
+    path('customer-care/payments/', views.customer_care_payments, name='customer_care_payments'),
+    path('customer-care/receipt/<int:payment_id>/', views.customer_care_receipt, name='customer_care_receipt'),
+    path('customer-care/reprint/<int:payment_id>/', views.customer_care_reprint_receipt, name='customer_care_reprint_receipt'),
+    path('customer-care/receipts/', views.customer_care_receipt_management, name='customer_care_receipt_management'),
 ]

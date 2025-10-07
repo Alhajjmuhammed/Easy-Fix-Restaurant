@@ -17,7 +17,7 @@ from .models import Payment, OrderItemPayment, VoidTransaction
 
 @login_required
 def cashier_dashboard(request):
-    """Main cashier dashboard with table filtering and order display"""
+    """Main cashier dashboard with table filtering and order display - CASHIER ONLY"""
     if not request.user.is_cashier():
         messages.error(request, "Access denied. Cashier role required.")
         return redirect('accounts:profile')
@@ -74,7 +74,7 @@ def cashier_dashboard(request):
 @require_http_methods(["GET", "POST"])
 def process_payment(request, order_id):
     """Process payment for an order - full or partial"""
-    if not request.user.is_cashier():
+    if not (request.user.is_cashier() or request.user.is_customer_care() or request.user.is_owner()):
         return JsonResponse({'error': 'Access denied'}, status=403)
     
     owner = get_owner_filter(request.user)
@@ -185,7 +185,7 @@ def process_payment(request, order_id):
 @require_http_methods(["POST"])
 def void_payment(request, payment_id):
     """Void a payment transaction"""
-    if not request.user.is_cashier():
+    if not (request.user.is_cashier() or request.user.is_customer_care() or request.user.is_owner()):
         return JsonResponse({'error': 'Access denied'}, status=403)
     
     owner = get_owner_filter(request.user)
@@ -243,7 +243,7 @@ def void_payment(request, payment_id):
 @require_http_methods(["POST"])
 def cancel_order(request, order_id):
     """Cancel an unpaid order"""
-    if not request.user.is_cashier():
+    if not (request.user.is_cashier() or request.user.is_customer_care() or request.user.is_owner()):
         return JsonResponse({'error': 'Access denied'}, status=403)
     
     owner = get_owner_filter(request.user)
@@ -279,7 +279,7 @@ def cancel_order(request, order_id):
 @login_required
 def payment_history(request, order_id):
     """Get payment history for an order"""
-    if not request.user.is_cashier():
+    if not (request.user.is_cashier() or request.user.is_customer_care() or request.user.is_owner()):
         return JsonResponse({'error': 'Access denied'}, status=403)
     
     owner = get_owner_filter(request.user)
@@ -318,8 +318,8 @@ def payment_history(request, order_id):
 @login_required
 def generate_receipt(request, payment_id):
     """Generate receipt for a specific payment"""
-    if not request.user.is_cashier():
-        messages.error(request, "Access denied. Cashier role required.")
+    if not (request.user.is_cashier() or request.user.is_customer_care() or request.user.is_owner()):
+        messages.error(request, "Access denied. Cashier, Customer Care, or Owner role required.")
         return redirect('accounts:profile')
     
     owner = get_owner_filter(request.user)
@@ -350,8 +350,8 @@ def generate_receipt(request, payment_id):
 @login_required  
 def reprint_receipt(request, payment_id):
     """Reprint an existing receipt"""
-    if not request.user.is_cashier():
-        messages.error(request, "Access denied. Cashier role required.")
+    if not (request.user.is_cashier() or request.user.is_customer_care() or request.user.is_owner()):
+        messages.error(request, "Access denied. Cashier, Customer Care, or Owner role required.")
         return redirect('accounts:profile')
     
     owner = get_owner_filter(request.user)
@@ -385,7 +385,7 @@ def reprint_receipt(request, payment_id):
 
 @login_required
 def receipt_management(request):
-    """Manage receipts - search and reprint by order number or date"""
+    """Manage receipts - search and reprint by order number or date - CASHIER ONLY"""
     if not request.user.is_cashier():
         messages.error(request, "Access denied. Cashier role required.")
         return redirect('accounts:profile')

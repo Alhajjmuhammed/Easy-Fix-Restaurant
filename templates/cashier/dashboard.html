@@ -1,7 +1,9 @@
 {% extends 'cashier_base.html' %}
 {% load static %}
 
-{% block title %}Cashier Dashboard{% endblock %}
+{% block title %}
+    {% if user.is_customer_care %}Payment Processing - Customer Care{% elif user.is_owner %}Payment Processing - Owner{% else %}Cashier Dashboard{% endif %}
+{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -103,7 +105,15 @@
         <div class="col-12">
             <!-- Desktop Header - Only visible on larger screens -->
             <div class="d-none d-md-flex justify-content-between align-items-center mb-4 desktop-header">
-                <h2 class="mb-0">💰 Cashier Dashboard</h2>
+                <h2 class="mb-0">
+                    {% if user.is_customer_care %}
+                        � Payment Processing
+                    {% elif user.is_owner %}
+                        💰 Payment Management
+                    {% else %}
+                        �💰 Cashier Dashboard
+                    {% endif %}
+                </h2>
                 <div class="d-flex gap-2">
                     <button class="btn btn-outline-primary btn-sm" onclick="window.location.reload()">
                         <i class="fas fa-sync-alt"></i> Refresh

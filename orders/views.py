@@ -524,7 +524,13 @@ def my_orders(request):
 @login_required
 def order_detail(request, order_id):
     """View order details with tracking information"""
-    order = get_object_or_404(Order, id=order_id, ordered_by=request.user)
+    # Allow Customer Care, Owner, and Kitchen Staff to view any order from their restaurant
+    if request.user.is_customer_care() or request.user.is_owner() or request.user.is_kitchen_staff():
+        owner = get_owner_filter(request.user)
+        order = get_object_or_404(Order, id=order_id, table_info__owner=owner)
+    else:
+        # Regular customers can only view their own orders
+        order = get_object_or_404(Order, id=order_id, ordered_by=request.user)
     
     # Define order progress steps with tracking information
     status_progress = [
@@ -1021,3 +1027,184 @@ def customer_care_dashboard(request):
     }
     
     return render(request, 'orders/customer_care_dashboard.html', context)
+
+
+@login_required
+def customer_care_payments(request):
+    """Customer Care payment processing interface - separate from cashier dashboard"""
+    if not (request.user.is_customer_care() or request.user.is_owner()):
+        messages.error(request, "Access denied. Customer Care or Owner role required.")
+        return redirect('accounts:profile')
+    
+    owner = get_owner_filter(request.user)
+    
+    # Get table filter from request
+    table_filter = request.GET.get('table', '')
+    status_filter = request.GET.get('status', '')
+    
+    # Base queryset for orders
+    orders = Order.objects.filter(table_info__owner=owner)
+    
+    # Apply filters
+    if table_filter:
+        orders = orders.filter(table_info__tbl_no__icontains=table_filter)
+    
+    if status_filter:
+        orders = orders.filter(payment_status=status_filter)
+    
+    # Prefetch related data
+    from django.db.models import Prefetch
+    orders = orders.select_related('table_info', 'ordered_by').prefetch_related(
+        Prefetch('order_items', queryset=OrderItem.objects.select_related('product')),
+        'payments'
+    ).order_by('-created_at')
+    
+    # Get all tables for dropdown
+    tables = TableInfo.objects.filter(owner=owner).order_by('tbl_no')
+    
+    # Get products for waste recording modal
+    products = Product.objects.filter(
+        main_category__owner=owner,
+        is_available=True
+    ).select_related('main_category')
+    
+    context = {
+        'orders': orders,
+        'tables': tables,
+        'products': products,
+        'table_filter': table_filter,
+        'status_filter': status_filter,
+        'user': request.user,
+        'is_customer_care': True,  # Flag to identify this is customer care interface
+    }
+    
+    return render(request, 'orders/customer_care_payments.html', context)
+
+
+@login_required
+def customer_care_receipt(request, payment_id):
+    """Generate receipt for Customer Care - separate from cashier"""
+    if not (request.user.is_customer_care() or request.user.is_owner()):
+        messages.error(request, "Access denied. Customer Care or Owner role required.")
+        return redirect('accounts:profile')
+    
+    from cashier.models import Payment
+    from decimal import Decimal
+    
+    owner = get_owner_filter(request.user)
+    payment = get_object_or_404(
+        Payment, 
+        id=payment_id, 
+        order__table_info__owner=owner
+    )
+    
+    # Get the order with all related data
+    order = payment.order
+    
+    # Calculate change and remaining balance
+    change_amount = payment.amount - order.get_total() if payment.payment_method == 'cash' and payment.amount > order.get_total() else Decimal('0.00')
+    remaining_balance = order.get_total() - payment.amount if payment.amount < order.get_total() else Decimal('0.00')
+    
+    context = {
+        'payment': payment,
+        'order': order,
+        'user': request.user,  # Current user viewing the receipt
+        'change_amount': change_amount,
+        'remaining_balance': remaining_balance,
+        'is_customer_care_interface': True,  # Flag for template
+    }
+    
+    return render(request, 'orders/customer_care_receipt.html', context)
+
+
+@login_required
+def customer_care_reprint_receipt(request, payment_id):
+    """Reprint receipt for Customer Care"""
+    if not (request.user.is_customer_care() or request.user.is_owner()):
+        messages.error(request, "Access denied. Customer Care or Owner role required.")
+        return redirect('accounts:profile')
+    
+    from cashier.models import Payment
+    from decimal import Decimal
+    
+    owner = get_owner_filter(request.user)
+    payment = get_object_or_404(
+        Payment, 
+        id=payment_id, 
+        order__table_info__owner=owner
+    )
+    
+    # Add a message indicating this is a reprint
+    messages.info(request, f"Reprinting receipt #{payment.id:06d}")
+    
+    # Get the order with all related data
+    order = payment.order
+    
+    # Calculate change and remaining balance
+    change_amount = payment.amount - order.get_total() if payment.payment_method == 'cash' and payment.amount > order.get_total() else Decimal('0.00')
+    remaining_balance = order.get_total() - payment.amount if payment.amount < order.get_total() else Decimal('0.00')
+    
+    context = {
+        'payment': payment,
+        'order': order,
+        'user': request.user,
+        'is_reprint': True,
+        'change_amount': change_amount,
+        'remaining_balance': remaining_balance,
+        'is_customer_care_interface': True,
+    }
+    
+    return render(request, 'orders/customer_care_receipt.html', context)
+
+
+@login_required
+def customer_care_receipt_management(request):
+    """Manage receipts for Customer Care - search and reprint by order number or date"""
+    if not (request.user.is_customer_care() or request.user.is_owner()):
+        messages.error(request, "Access denied. Customer Care or Owner role required.")
+        return redirect('accounts:profile')
+    
+    from cashier.models import Payment
+    from restaurant.models import Product
+    from django.db.models import Q
+    
+    owner = get_owner_filter(request.user)
+    
+    # Get search parameters
+    search_query = request.GET.get('search', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Base queryset for payments
+    payments = Payment.objects.filter(
+        order__table_info__owner=owner,
+        is_voided=False
+    ).select_related(
+        'order', 'order__table_info', 'processed_by'
+    ).order_by('-created_at')
+    
+    # Apply filters
+    if search_query:
+        payments = payments.filter(
+            Q(order__order_number__icontains=search_query) |
+            Q(id=search_query if search_query.isdigit() else 0)
+        )
+    
+    if date_from:
+        payments = payments.filter(created_at__date__gte=date_from)
+    
+    if date_to:
+        payments = payments.filter(created_at__date__lte=date_to)
+    
+    # Limit results for performance
+    payments = payments[:50]
+    
+    context = {
+        'payments': payments,
+        'search_query': search_query,
+        'date_from': date_from,
+        'date_to': date_to,
+        'user': request.user,
+    }
+    
+    return render(request, 'orders/customer_care_receipt_management.html', context)

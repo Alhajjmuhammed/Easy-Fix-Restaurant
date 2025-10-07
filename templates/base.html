@@ -172,7 +172,19 @@
                         </li>
                         {% if user.is_owner %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'admin_panel:admin_dashboard' %}">Dashboard</a>
+                                <a class="nav-link" href="{% url 'admin_panel:admin_dashboard' %}">
+                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'orders:customer_care_payments' %}">
+                                    <i class="fas fa-cash-register"></i> Payments
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'orders:customer_care_receipt_management' %}">
+                                    <i class="bi bi-receipt"></i> Receipts
+                                </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="{% url 'reports:dashboard' %}">
@@ -249,7 +261,19 @@
                             </li>
                         {% elif user.is_customer_care %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'orders:customer_care_dashboard' %}">Customer Care</a>
+                                <a class="nav-link" href="{% url 'orders:customer_care_dashboard' %}">
+                                    <i class="fas fa-headset"></i> Customer Care
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'orders:customer_care_payments' %}">
+                                    <i class="bi bi-cash-coin"></i> Process Payments
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'orders:customer_care_receipt_management' %}">
+                                    <i class="bi bi-receipt"></i> Receipts
+                                </a>
                             </li>
                         {% elif user.is_cashier %}
                             <li class="nav-item">

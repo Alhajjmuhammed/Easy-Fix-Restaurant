@@ -136,14 +136,12 @@
                 <div>Time: {{ payment.created_at|date:"H:i" }}</div>
                 <div>Table: {{ order.table_info.tbl_no|default:"Takeaway" }}</div>
                 <div>
-                    {% if payment.processed_by.is_cashier %}
-                        Cashier: {{ payment.processed_by.first_name }} {{ payment.processed_by.last_name }}
-                    {% elif payment.processed_by.is_customer_care %}
-                        Customer Care: {{ payment.processed_by.first_name }} {{ payment.processed_by.last_name }}
-                    {% elif payment.processed_by.is_owner %}
-                        Owner: {{ payment.processed_by.first_name }} {{ payment.processed_by.last_name }}
+                    {% if user.is_customer_care %}
+                        Customer Care: {{ user.first_name }} {{ user.last_name }}
+                    {% elif user.is_owner %}
+                        Owner: {{ user.first_name }} {{ user.last_name }}
                     {% else %}
-                        Processed by: {{ payment.processed_by.first_name }} {{ payment.processed_by.last_name }}
+                        Processed by: {{ user.first_name }} {{ user.last_name }}
                     {% endif %}
                 </div>
             </div>
@@ -236,36 +234,16 @@
             <button type="button" class="btn btn-primary me-2" onclick="window.print()">
                 <i class="fas fa-print"></i> Print Receipt
             </button>
-            {% if user.is_cashier %}
-                <a href="{% url 'cashier:dashboard' %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Cashier
-                </a>
-            {% elif user.is_customer_care %}
-                <a href="{% url 'orders:customer_care_payments' %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Payments
-                </a>
-            {% elif user.is_owner %}
-                <a href="{% url 'orders:customer_care_payments' %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Payments
-                </a>
-            {% else %}
-                <a href="/" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
-            {% endif %}
-            {% if is_customer_care_interface %}
-                <a href="{% url 'orders:customer_care_reprint_receipt' payment.id %}" class="btn btn-info ms-2">
-                    <i class="fas fa-copy"></i> Reprint
-                </a>
-            {% else %}
-                <a href="{% url 'cashier:reprint_receipt' payment.id %}" class="btn btn-info ms-2">
-                    <i class="fas fa-copy"></i> Reprint
-                </a>
-            {% endif %}
+            <a href="{% url 'orders:customer_care_payments' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Payments
+            </a>
+            <a href="{% url 'orders:customer_care_reprint_receipt' payment.id %}" class="btn btn-info ms-2">
+                <i class="fas fa-copy"></i> Reprint
+            </a>
         </div>
     </div>
     
     <!-- Include Font Awesome for icons -->
-    <script src="https://kit.fontawesome.com/your-font-awesome-kit.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </body>
 </html>

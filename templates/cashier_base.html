@@ -191,12 +191,28 @@
                         <a class="nav-link dropdown-toggle text-dark" href="#" id="cashierDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user-circle"></i> 
                             <span class="fw-semibold">{{ user.get_full_name|default:user.username }}</span>
-                            <small class="text-muted">| Cashier</small>
+                            <small class="text-muted">| 
+                                {% if user.is_customer_care %}Customer Care
+                                {% elif user.is_owner %}Owner
+                                {% elif user.is_cashier %}Cashier
+                                {% else %}Staff
+                                {% endif %}
+                            </small>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">
                                 <i class="fas fa-user"></i> Profile
                             </a></li>
+                            {% if user.is_customer_care %}
+                            <li><a class="dropdown-item" href="{% url 'orders:customer_care_dashboard' %}">
+                                <i class="fas fa-headset"></i> Customer Care Dashboard
+                            </a></li>
+                            {% endif %}
+                            {% if user.is_owner %}
+                            <li><a class="dropdown-item" href="{% url 'admin_panel:admin_dashboard' %}">
+                                <i class="fas fa-tachometer-alt"></i> Owner Dashboard
+                            </a></li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">
                                 <i class="fas fa-sign-out-alt"></i> Logout
@@ -232,7 +248,7 @@
                             <i class="fas fa-utensils me-2"></i>Menu
                         </a>
                         <a class="mobile-nav-link active" href="{% url 'cashier:dashboard' %}">
-                            <i class="fas fa-tachometer-alt me-2"></i>Cashier Dashboard
+                            <i class="fas fa-cash-register me-2"></i>Cashier / Payments
                         </a>
                         <a class="mobile-nav-link" href="{% url 'cashier:receipt_management' %}">
                             <i class="fas fa-receipt me-2"></i>Manage Receipts
@@ -241,6 +257,16 @@
                             <i class="fas fa-trash-alt me-2"></i>Record Waste
                         </a>
                         <hr class="my-2">
+                        {% if user.is_customer_care %}
+                        <a class="mobile-nav-link" href="{% url 'orders:customer_care_dashboard' %}">
+                            <i class="fas fa-headset me-2"></i>Customer Care Dashboard
+                        </a>
+                        {% endif %}
+                        {% if user.is_owner %}
+                        <a class="mobile-nav-link" href="{% url 'admin_panel:admin_dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-2"></i>Owner Dashboard
+                        </a>
+                        {% endif %}
                         <a class="mobile-nav-link" href="{% url 'accounts:profile' %}">
                             <i class="fas fa-user me-2"></i>Profile
                         </a>
