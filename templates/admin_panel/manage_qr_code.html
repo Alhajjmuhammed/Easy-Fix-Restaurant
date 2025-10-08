@@ -76,7 +76,7 @@
                 <!-- QR Code Visual -->
                 <div class="qr-code-display">
                     <div class="text-center">
-                        <img src="{% url 'admin_panel:generate_qr_image' %}" alt="Restaurant QR Code" class="img-fluid mb-3" style="max-width: 200px; max-height: 200px;">
+                        <img src="{% url 'admin_panel:generate_qr_image' %}?v={{ qr_code }}&t={% now 'U' %}" alt="Restaurant QR Code" class="img-fluid mb-3" style="max-width: 200px; max-height: 200px;">
                         <h4 class="text-dark">QR Code</h4>
                         <p class="text-muted">{{ qr_code }}</p>
                         <small class="text-muted">Scan this code to access the restaurant</small>
@@ -153,6 +153,11 @@
                             <i class="bi bi-clipboard-check"></i> Copy QR URL
                         </button>
                         
+                        <!-- Refresh QR Image Button -->
+                        <button class="btn btn-secondary" onclick="refreshQRImage()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh QR Image
+                        </button>
+                        
                         <!-- Share Button -->
                         <button class="btn btn-success" onclick="shareQRCode()">
                             <i class="bi bi-share"></i> Share QR Code
@@ -217,6 +222,30 @@ function copyToClipboard(elementId) {
             btn.classList.add(elementId === 'fullUrl' ? 'btn-primary' : 'btn-outline-secondary');
         }, 2000);
     });
+}
+
+function refreshQRImage() {
+    // Find the QR code image element
+    const qrImage = document.querySelector('.qr-code-display img');
+    if (qrImage) {
+        // Force refresh by adding a new timestamp
+        const baseUrl = qrImage.src.split('?')[0];
+        const newTimestamp = new Date().getTime();
+        qrImage.src = `${baseUrl}?v={{ qr_code }}&t=${newTimestamp}`;
+        
+        // Show success message
+        const btn = event.target;
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> Refreshed!';
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-secondary');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalContent;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-secondary');
+        }, 2000);
+    }
 }
 
 function shareQRCode() {

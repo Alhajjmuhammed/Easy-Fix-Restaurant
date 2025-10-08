@@ -71,4 +71,5 @@ urlpatterns = [
     path('qr-code/', views.manage_qr_code, name='manage_qr_code'),
     path('qr-code/regenerate/', views.regenerate_qr_code, name='regenerate_qr_code'),
     path('qr-code/image/', views.generate_qr_image, name='generate_qr_image'),
+    path('qr-code/debug/', views.debug_qr_code, name='debug_qr_code'),
 ]

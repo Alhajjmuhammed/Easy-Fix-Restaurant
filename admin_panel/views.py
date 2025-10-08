@@ -1961,11 +1961,35 @@ def generate_qr_image(request):
     qr_img.save(img_io, format='PNG')
     img_io.seek(0)
     
-    # Return image response
+    # Return image response with NO CACHING to prevent stale QR codes
     response = HttpResponse(img_io.getvalue(), content_type='image/png')
-    response['Cache-Control'] = 'public, max-age=300'  # Cache for 5 minutes
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
     return response
 
+
+@login_required
+def debug_qr_code(request):
+    """Debug endpoint to show QR code information"""
+    if not request.user.is_owner():
+        return HttpResponse("Access denied", status=403)
+    
+    from django.http import JsonResponse
+    
+    qr_url = get_production_qr_url(request, request.user.restaurant_qr_code)
+    
+    debug_info = {
+        'username': request.user.username,
+        'restaurant_name': request.user.restaurant_name,
+        'qr_code_in_database': request.user.restaurant_qr_code,
+        'full_qr_url': qr_url,
+        'expected_access_url': f"/r/{request.user.restaurant_qr_code}/",
+        'is_owner': request.user.is_owner(),
+        'host': request.get_host(),
+    }
+    
+    return JsonResponse(debug_info, json_dumps_params={'indent': 2})
 
 @login_required
 def import_products_csv(request):
