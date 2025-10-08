@@ -1917,8 +1917,11 @@ def generate_qr_image(request):
         request.user.generate_qr_code()
         request.user.save()
     
-    # Generate the full QR URL
-    qr_url = request.build_absolute_uri(f'/r/{request.user.restaurant_qr_code}/')
+    # Generate the full QR URL - Force HTTPS for production
+    if request.is_secure() or 'easyfixsoft.com' in request.get_host():
+        qr_url = f'https://{request.get_host()}/r/{request.user.restaurant_qr_code}/'
+    else:
+        qr_url = request.build_absolute_uri(f'/r/{request.user.restaurant_qr_code}/')
     
     # Create QR code
     qr = qrcode.QRCode(
