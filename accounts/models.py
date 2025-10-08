@@ -130,7 +130,9 @@ class User(AbstractUser):
             if request:
                 base_url = request.build_absolute_uri('/')
                 return f"{base_url}r/{self.restaurant_qr_code}/"
-            return f"/r/{self.restaurant_qr_code}/"
+            else:
+                # Use production domain as fallback
+                return f"https://easyfixsoft.com/r/{self.restaurant_qr_code}/"
         return None
     
     def save(self, *args, **kwargs):
