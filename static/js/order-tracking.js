@@ -2,10 +2,17 @@
 console.log('Kitchen order tracking initialized');
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-refresh every 30 seconds to get new orders
-    setInterval(function() {
-        window.location.reload();
-    }, 30000);
+    // Only auto-refresh on kitchen dashboard, not other pages
+    const isKitchenDashboard = window.location.pathname.includes('/kitchen/') || 
+                              document.querySelector('[data-kitchen-dashboard]');
+    
+    if (isKitchenDashboard) {
+        // Auto-refresh every 2 minutes (120 seconds) for kitchen dashboard only
+        setInterval(function() {
+            window.location.reload();
+        }, 120000);
+        console.log('Auto-refresh enabled for kitchen dashboard (every 2 minutes)');
+    }
     
     // Handle status update buttons
     const confirmButtons = document.querySelectorAll('[data-action="confirm"]');
