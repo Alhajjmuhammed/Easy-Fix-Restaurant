@@ -56,13 +56,25 @@ def logout_view(request):
     return redirect('accounts:login')
 
 def register_view(request):
+    # Redirect already authenticated users
+    if request.user.is_authenticated:
+        messages.info(request, 'You are already logged in.')
+        return redirect('restaurant:home')
+        
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
             user.set_password(form.cleaned_data['password'])
-            user.role = form.cleaned_data['role']
-            user.owner = form.cleaned_data['owner']
+            
+            # Set default role as customer
+            from .models import Role
+            customer_role, created = Role.objects.get_or_create(
+                name='customer',
+                defaults={'description': 'Customer'}
+            )
+            user.role = customer_role
+            user.owner = None  # Customers don't have an owner initially
             user.save()
             
             messages.success(request, 'Registration successful! You can now log in.')
@@ -75,6 +87,11 @@ def register_view(request):
 
 def register_owner_view(request):
     """Separate registration for restaurant owners"""
+    # Redirect already authenticated users
+    if request.user.is_authenticated:
+        messages.info(request, 'You are already logged in.')
+        return redirect('restaurant:home')
+        
     if request.method == 'POST':
         form = OwnerRegistrationForm(request.POST)
         if form.is_valid():
