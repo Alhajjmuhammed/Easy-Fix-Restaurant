@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.db.models import Q, Sum, Prefetch
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 
 from accounts.models import get_owner_filter
@@ -118,14 +118,39 @@ def process_payment(request, order_id):
     # POST - Process payment
     try:
         data = json.loads(request.body)
-        amount = Decimal(str(data.get('amount', '0')))
+        
+        # Better amount handling and validation
+        amount_input = data.get('amount', '0')
+        try:
+            # Handle both string and numeric inputs
+            if isinstance(amount_input, str):
+                amount_input = amount_input.strip().replace(',', '')  # Remove commas
+            amount = Decimal(str(amount_input))
+        except (ValueError, TypeError, InvalidOperation):
+            return JsonResponse({'error': 'Invalid payment amount format'}, status=400)
+        
         payment_method = data.get('payment_method', 'cash')
         selected_items = data.get('selected_items', [])
         reference_number = data.get('reference_number', '')
         notes = data.get('notes', '')
         
+        # Validate amount
         if amount <= 0:
-            return JsonResponse({'error': 'Invalid payment amount'}, status=400)
+            return JsonResponse({'error': 'Payment amount must be greater than zero'}, status=400)
+        
+        # Check if order is already fully paid
+        total_paid = order.payments.filter(is_voided=False).aggregate(
+            total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        remaining_balance = order.total_amount - total_paid
+        
+        if remaining_balance <= 0:
+            return JsonResponse({'error': 'Order is already fully paid'}, status=400)
+        
+        if amount > remaining_balance:
+            return JsonResponse({
+                'error': f'Payment amount (${amount}) exceeds remaining balance (${remaining_balance})'
+            }, status=400)
         
         # Create payment record
         payment = Payment.objects.create(

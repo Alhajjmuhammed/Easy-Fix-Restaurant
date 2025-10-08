@@ -731,15 +731,24 @@ def update_order_status(request, order_id):
         else:
             order = get_object_or_404(Order, id=order_id)
         
-        # Validate status transitions
+        # More flexible status transitions for mobile/real-world usage
         valid_transitions = {
             'pending': ['confirmed', 'cancelled'],
             'confirmed': ['preparing', 'cancelled'],
             'preparing': ['ready', 'cancelled'],
             'ready': ['served', 'cancelled'],
-            'served': [],
+            'served': ['cancelled'],  # Allow cancellation even after served (refunds, etc.)
             'cancelled': []
         }
+        
+        # Allow kitchen staff to change status backwards for corrections
+        if request.user.is_kitchen_staff() or request.user.is_owner():
+            valid_transitions.update({
+                'confirmed': ['pending', 'preparing', 'cancelled'],
+                'preparing': ['confirmed', 'ready', 'cancelled'], 
+                'ready': ['preparing', 'served', 'cancelled'],
+                'served': ['ready', 'cancelled']  # Allow corrections
+            })
         
         if new_status not in valid_transitions.get(order.status, []):
             return JsonResponse({'success': False, 'message': 'Invalid status transition.'})
