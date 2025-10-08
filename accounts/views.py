@@ -164,6 +164,9 @@ def profile_view(request):
 def qr_code_access(request, qr_code):
     """Handle QR code access to restaurant"""
     try:
+        # Clean the QR code - remove any trailing slashes or whitespace
+        qr_code = qr_code.strip().rstrip('/')
+        
         # Find restaurant by QR code
         restaurant = User.objects.get(
             restaurant_qr_code=qr_code, 
@@ -202,7 +205,9 @@ def qr_code_access(request, qr_code):
         return redirect('restaurant:menu')
         
     except User.DoesNotExist:
-        messages.error(request, 'Invalid QR code. Restaurant not found.')
+        # Log the QR code that failed for debugging
+        print(f"QR Code Access Failed: '{qr_code}'")
+        messages.error(request, f'Invalid QR code. Restaurant not found. (Code: {qr_code})')
         return redirect('accounts:login')
 
 

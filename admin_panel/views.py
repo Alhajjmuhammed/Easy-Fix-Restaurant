@@ -28,6 +28,26 @@ except ImportError:
     openpyxl = None
 
 
+def get_production_qr_url(request, qr_code):
+    """
+    Helper function to generate the correct QR URL
+    - Local development: http://127.0.0.1:8000/r/{qr_code}/
+    - Production: https://easyfixsoft.com/r/{qr_code}/
+    """
+    host = request.get_host()
+    
+    # Force HTTPS for production domains
+    if 'easyfixsoft.com' in host or '24.199.116.165' in host:
+        return f'https://easyfixsoft.com/r/{qr_code}/'
+    
+    # Local development - use HTTP
+    if '127.0.0.1' in host or 'localhost' in host:
+        return f'http://{host}/r/{qr_code}/'
+    
+    # Fallback - use HTTPS with current host
+    return f'https://{host}/r/{qr_code}/'
+
+
 @login_required
 def admin_dashboard(request):
     """Main admin dashboard view - accessible by administrators and owners"""
@@ -1881,8 +1901,8 @@ def manage_qr_code(request):
         request.user.generate_qr_code()
         request.user.save()
     
-    # Generate the full QR URL
-    qr_url = request.build_absolute_uri(f'/r/{request.user.restaurant_qr_code}/')
+    # Generate the full QR URL using helper function
+    qr_url = get_production_qr_url(request, request.user.restaurant_qr_code)
     
     context = {
         'user': request.user,
@@ -1920,11 +1940,8 @@ def generate_qr_image(request):
         request.user.generate_qr_code()
         request.user.save()
     
-    # Generate the full QR URL - Force HTTPS for production
-    if request.is_secure() or 'easyfixsoft.com' in request.get_host():
-        qr_url = f'https://{request.get_host()}/r/{request.user.restaurant_qr_code}/'
-    else:
-        qr_url = request.build_absolute_uri(f'/r/{request.user.restaurant_qr_code}/')
+    # Generate the full QR URL using helper function
+    qr_url = get_production_qr_url(request, request.user.restaurant_qr_code)
     
     # Create QR code
     qr = qrcode.QRCode(

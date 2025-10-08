@@ -877,6 +877,140 @@
         align-items: center;
         gap: 1rem;
     }
+
+    /* Mobile Optimizations for Modal */
+    @media (max-width: 768px) {
+        /* Make modal TRULY full screen on mobile */
+        .modal-dialog {
+            margin: 0 !important;
+            max-width: 100% !important;
+            width: 100vw !important;
+            height: 100vh !important;
+        }
+        
+        .modal-content {
+            height: 100vh !important;
+            border-radius: 0 !important;
+            border: none !important;
+            width: 100% !important;
+        }
+        
+        .modal-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .modal-body {
+            padding: 0.5rem;
+            overflow-y: auto;
+            max-height: calc(100vh - 60px);
+        }
+        
+        /* Product cards in modal - stack vertically */
+        .modal-body .row > div[class*="col-"] {
+            padding: 0.5rem !important;
+        }
+        
+        .modal-body .card {
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Compact product card design for mobile */
+        .modal-body .card-body {
+            padding: 0.75rem;
+        }
+        
+        .modal-body .card-title {
+            font-size: 0.95rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        .modal-body .card-text {
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Price and stock on same line */
+        .modal-body .d-flex.justify-content-between {
+            font-size: 0.85rem;
+        }
+        
+        /* Quantity controls - more compact */
+        .modal-body .quantity-controls {
+            gap: 0.3rem;
+        }
+        
+        .modal-body .form-control {
+            width: 50px !important;
+            font-size: 0.85rem;
+            padding: 0.25rem;
+        }
+        
+        .modal-body .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        /* Add to Cart button - full width on mobile */
+        .modal-body .btn-primary {
+            white-space: nowrap;
+        }
+        
+        /* Subcategory tabs - scrollable */
+        .modal-body .nav-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .modal-body .nav-link {
+            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+            white-space: nowrap;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        /* Extra small devices - even more compact */
+        .modal-body {
+            padding: 0.25rem;
+        }
+        
+        .modal-body .card-body {
+            padding: 0.5rem;
+        }
+        
+        .modal-body .card-title {
+            font-size: 0.9rem;
+        }
+        
+        .modal-body .card-text {
+            font-size: 0.75rem;
+        }
+        
+        .modal-body .h6 {
+            font-size: 0.85rem;
+        }
+        
+        .modal-body small {
+            font-size: 0.7rem;
+        }
+        
+        /* Stack quantity and button vertically on very small screens */
+        .modal-body .d-flex.justify-content-between.align-items-center:last-child {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .modal-body .quantity-controls {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .modal-body .btn-primary {
+            width: 100%;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -963,7 +1097,7 @@
 
     <!-- Category Modal -->
     <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-xl modal-fullscreen-md-down">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="categoryModalLabel">Category Menu</h5>
