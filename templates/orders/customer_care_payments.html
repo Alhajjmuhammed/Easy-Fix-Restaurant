@@ -339,7 +339,7 @@ function submitPayment() {
         },
         body: JSON.stringify({
             payment_method: formData.get('payment_method'),
-            amount_paid: parseFloat(formData.get('amount_paid')),
+            amount: parseFloat(formData.get('amount_paid')),
             notes: formData.get('notes')
         })
     })
