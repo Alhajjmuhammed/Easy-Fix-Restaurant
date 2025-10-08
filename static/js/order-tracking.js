@@ -7,11 +7,11 @@ document.addEventListener('DOMContentLoaded', function() {
                               document.querySelector('[data-kitchen-dashboard]');
     
     if (isKitchenDashboard) {
-        // Auto-refresh every 2 minutes (120 seconds) for kitchen dashboard only
+        // Auto-refresh every 30 seconds for kitchen dashboard only
         setInterval(function() {
             window.location.reload();
-        }, 120000);
-        console.log('Auto-refresh enabled for kitchen dashboard (every 2 minutes)');
+        }, 30000);
+        console.log('Auto-refresh enabled for kitchen dashboard (every 30 seconds)');
     }
     
     // Handle status update buttons
