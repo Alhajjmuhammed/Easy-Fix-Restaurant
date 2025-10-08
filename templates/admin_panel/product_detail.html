@@ -1,7 +1,7 @@
 <div class="row g-4">
     <div class="col-md-4">
-        {% if product.image %}
-            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded">
+        {% if product.main_category.image %}
+            <img src="{{ product.main_category.image.url }}" alt="{{ product.name }}" class="img-fluid rounded">
         {% else %}
             <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 250px;">
                 <i class="fas fa-image fa-3x text-muted"></i>

@@ -49,10 +49,18 @@ def login_view(request):
     return render(request, 'accounts/login.html', {'form': form})
 
 def logout_view(request):
+    # Clear cart and session data before logout
+    if 'cart' in request.session:
+        del request.session['cart']
+    if 'selected_table' in request.session:
+        del request.session['selected_table']
+    if 'selected_restaurant_id' in request.session:
+        del request.session['selected_restaurant_id']
+    if 'selected_restaurant_name' in request.session:
+        del request.session['selected_restaurant_name']
+    
     logout(request)
-    # Only show logout message if user was actually logged in
-    if request.user.is_authenticated:
-        messages.success(request, 'You have been logged out successfully.')
+    messages.success(request, 'You have been logged out successfully. Your cart has been cleared.')
     return redirect('accounts:login')
 
 def register_view(request):

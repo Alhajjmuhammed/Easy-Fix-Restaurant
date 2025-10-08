@@ -42,6 +42,7 @@ class MainCategory(models.Model):
                              limit_choices_to={'role__name': 'owner'}, null=True, blank=True)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    image = models.ImageField(upload_to='categories/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -79,7 +80,6 @@ class Product(models.Model):
     sub_category = models.ForeignKey(SubCategory, on_delete=models.CASCADE, related_name='products', null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
     available_in_stock = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    image = models.ImageField(upload_to='products/', blank=True, null=True)
     is_available = models.BooleanField(default=True)
     preparation_time = models.IntegerField(help_text="Time in minutes", default=15)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -94,6 +94,10 @@ class Product(models.Model):
     
     def is_in_stock(self):
         return self.available_in_stock > 0 and self.is_available
+    
+    def get_image(self):
+        """Get the category image for this product"""
+        return self.main_category.image
     
     def get_current_price(self):
         """Get current price considering active Happy Hour promotions"""

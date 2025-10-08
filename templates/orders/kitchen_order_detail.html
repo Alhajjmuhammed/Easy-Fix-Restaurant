@@ -23,8 +23,8 @@
                 {% for item in order.order_items.all %}
                     <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
                         <div class="d-flex align-items-center">
-                            {% if item.product.image %}
-                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% if item.product.main_category.image %}
+                                <img src="{{ item.product.main_category.image.url }}" alt="{{ item.product.name }}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
                             {% else %}
                                 <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
                                     <i class="bi bi-image text-muted"></i>

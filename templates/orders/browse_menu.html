@@ -86,8 +86,8 @@
                         {% if product.is_available %}
                             <div class="col-md-6 col-lg-4 mb-4">
                                 <div class="card product-card shadow-sm">
-                                    {% if product.image %}
-                                        <img src="{{ product.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                    {% if product.main_category.image %}
+                                        <img src="{{ product.main_category.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
                                     {% else %}
                                         <div class="card-img-top product-image bg-light d-flex align-items-center justify-content-center">
                                             <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>

@@ -219,8 +219,8 @@
                                 <div class="d-flex align-items-start flex-grow-1">
                                     <!-- Small thumbnail image -->
                                     <div class="me-3">
-                                        {% if product.image %}
-                                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">
+                                        {% if product.main_category.image %}
+                                        <img src="{{ product.main_category.image.url }}" alt="{{ product.name }}" class="product-image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">
                                         {% else %}
                                         <div class="no-image-placeholder-card" style="width: 50px; height: 50px;">
                                             <i class="fas fa-image text-muted"></i>
@@ -317,8 +317,8 @@
                             <tr>
                                 <td>{{ forloop.counter }}</td>
                                 <td>
-                                    {% if product.image %}
-                                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-table-image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">
+                                    {% if product.main_category.image %}
+                                    <img src="{{ product.main_category.image.url }}" alt="{{ product.name }}" class="product-table-image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">
                                     {% else %}
                                     <div class="no-image-placeholder" style="width: 50px; height: 50px;">
                                         <i class="fas fa-image text-muted"></i>

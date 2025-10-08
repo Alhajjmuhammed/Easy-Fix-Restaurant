@@ -91,8 +91,8 @@
                         {% for item in order_items %}
                         <tr>
                             <td>
-                                {% if item.product.image %}
-                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="me-2" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px;">
+                                {% if item.product.main_category.image %}
+                                <img src="{{ item.product.main_category.image.url }}" alt="{{ item.product.name }}" class="me-2" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px;">
                                 {% endif %}
                                 {{ item.product.name }}
                                 {% if item.special_instructions %}

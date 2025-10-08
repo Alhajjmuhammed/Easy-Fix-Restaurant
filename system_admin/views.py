@@ -1006,7 +1006,7 @@ def edit_product(request, product_id):
             'sub_category_name': product.sub_category.name if product.sub_category else None,
             'restaurant_name': product.main_category.owner.restaurant_name,
             'restaurant_id': product.main_category.owner.id,
-            'image_url': product.image.url if product.image else None
+            'image_url': product.get_image().url if product.get_image() else None
         })
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error retrieving product data: {str(e)}'})

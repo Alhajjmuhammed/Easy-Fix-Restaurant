@@ -190,7 +190,7 @@ def add_to_cart(request):
                 'original_price': str(product.price),
                 'has_promotion': product.has_active_promotion(),
                 'quantity': quantity,
-                'image': product.image.url if product.image else None,
+                'image': product.get_image().url if product.get_image() else None,
             }
         
         request.session['cart'] = cart

@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Menu - {{ restaurant_name|default:"Restaurant" }}{% endblock %}
 
@@ -890,10 +890,10 @@
         <h2 class="mb-2">
             <i class="bi bi-menu-button-wide"></i> {{ restaurant_name|default:"Restaurant" }} Menu
         </h2>
-        <p class="mb-3">Table {{ table_number }} â€¢ Discover our amazing culinary creations</p>
+        <p class="mb-3">Table {{ table_number }} • Discover our amazing culinary creations</p>
         <div class="d-flex gap-2 justify-content-center flex-wrap">
-            <a href="{% url 'orders:view_cart' %}" class="btn btn-light rounded-pill px-3 py-2" id="viewCartBtn">
-                <i class="bi bi-cart3"></i> View Cart (<span id="cartCount">{{ cart_count|default:0 }}</span>)
+            <a href="{% url 'orders:view_cart' %}" class="btn btn-light rounded-pill px-3 py-2">
+                <i class="bi bi-cart3"></i> View Cart ({{ cart_count|default:0 }})
             </a>
             <a href="{% url 'orders:select_table' %}" class="btn btn-outline-light rounded-pill px-3 py-2">
                 <i class="bi bi-arrow-left"></i> Change Table
@@ -1137,13 +1137,39 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded - Modal functionality starting');
+    // Real category data from Django template
+    const categoryData = {
+        {% for category in categories %}
+        "{{ category.name }}": {
+            subcategories: [
+                {% for subcategory in category.subcategories.all %}
+                {
+                    name: "{{ subcategory.name }}",
+                    products: [
+                        {% for product in subcategory.products.all %}
+                        {
+                            id: {{ product.id }},
+                            name: "{{ product.name|escapejs }}",
+                            description: "{{ product.description|escapejs }}",
+                            price: {{ product.price }},
+                            stock: {{ product.stock }}
+                        }{% if not forloop.last %},{% endif %}
+                        {% empty %}
+                        {% endfor %}
+                    ]
+                }{% if not forloop.last %},{% endif %}
+                {% empty %}
+                {% endfor %}
+            ]
+        }{% if not forloop.last %},{% endif %}
+        {% empty %}
+        {% endfor %}
+    };
 
     // Handle category card clicks
     document.querySelectorAll('.category-card').forEach(card => {
         card.addEventListener('click', function() {
             const categoryName = this.getAttribute('data-category-name');
-            console.log('Category clicked:', categoryName);
             
             // Update modal title
             document.getElementById('categoryModalLabel').textContent = categoryName + ' Menu';
@@ -1156,187 +1182,107 @@ document.addEventListener('DOMContentLoaded', function() {
             tabsContainer.innerHTML = '';
             contentContainer.innerHTML = '';
 
-            // Build categories data safely from Django template
-            let categoriesData = {};
-            
-            {% if categories %}
-            {% for category in categories %}
-            {% with subcat_list=category.subcategories.all %}
-            {% if subcat_list %}
-            categoriesData['{{ category.name|escapejs }}'] = {
-                'id': {{ category.id }},
-                'subcategories': {}
-            };
-            {% for subcategory in subcat_list %}
-            {% with prod_list=subcategory.products.all %}
-            {% if prod_list %}
-            categoriesData['{{ category.name|escapejs }}'].subcategories['{{ subcategory.name|escapejs }}'] = {
-                'id': {{ subcategory.id }},
-                'products': [
-                    {% for product in prod_list %}
-                    {
-                        'id': {{ product.id }},
-                        'name': '{{ product.name|escapejs }}',
-                        'description': '{{ product.description|escapejs|truncatechars:100 }}',
-                        'price': '{{ product.get_current_price }}',
-                        'original_price': '{{ product.price }}',
-                        'stock': {{ product.available_in_stock }},
-                        'is_available': {{ product.is_available|yesno:"true,false" }},
-                        'has_promotion': false
-                    }{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ]
-            };
-            {% endif %}
-            {% endwith %}
-            {% endfor %}
-            {% endif %}
-            {% endwith %}
-            {% endfor %}
-            {% endif %}
+            // Get category data
+            const catData = categoryData[categoryName];
+            if (!catData) return;
 
-            console.log('Categories data:', categoriesData);
+            // Create tabs and content
+            catData.subcategories.forEach((subcategory, index) => {
+                const isActive = index === 0;
+                const contentId = `content-${categoryName}-${index}`;
+                
+                // Create tab
+                const tab = document.createElement('li');
+                tab.className = 'nav-item';
+                tab.innerHTML = `
+                    <button class="nav-link ${isActive ? 'active' : ''}" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#${contentId}" 
+                            type="button">
+                        <i class="bi bi-list-ul me-1"></i>${subcategory.name}
+                    </button>
+                `;
+                tabsContainer.appendChild(tab);
 
-            // Check if category exists in real data
-            if (categoriesData[categoryName] && 
-                categoriesData[categoryName].subcategories && 
-                Object.keys(categoriesData[categoryName].subcategories).length > 0) {
-                
-                console.log('Using dynamic data for', categoryName);
-                const subcategories = categoriesData[categoryName].subcategories;
-                const subcategoryNames = Object.keys(subcategories);
-                
-                // Create tabs for real subcategories
-                let tabsHtml = '';
-                let contentHtml = '';
-                    
-                    subcategoryNames.forEach((subName, index) => {
-                        const isActive = index === 0 ? 'active' : '';
-                        const showActive = index === 0 ? 'show active' : '';
-                        const tabId = subName.toLowerCase().replace(/[^a-z0-9]/g, '');
-                        
-                        // Create tab
-                        tabsHtml += `
-                            <li class="nav-item">
-                                <button class="nav-link ${isActive}" data-bs-toggle="tab" data-bs-target="#${tabId}" type="button">
-                                    <i class="bi bi-list-ul me-1"></i>${subName}
-                                </button>
-                            </li>
-                        `;
-                        
-                        // Create content
-                        const products = subcategories[subName].products;
-                        let productsHtml = '';
-                        
-                        if (products.length > 0) {
-                            products.forEach(product => {
-                                if (product.is_available && product.stock > 0) {
-                                    const priceDisplay = product.has_promotion ? 
-                                        `<span class="h6 mb-0 text-success">$${product.price}</span> <small class="text-muted text-decoration-line-through">$${product.original_price}</small>` :
-                                        `<span class="h6 mb-0">$${product.price}</span>`;
-                                    
-                                    productsHtml += `
-                                        <div class="col-md-4 mb-3">
-                                            <div class="card">
-                                                <div class="card-body">
-                                                    <h6 class="card-title">${product.name}</h6>
-                                                    <p class="card-text">${product.description}</p>
-                                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        ${priceDisplay}
-                                                        <small class="text-muted">Stock: ${product.stock}</small>
-                                                    </div>
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <div class="quantity-controls d-flex align-items-center">
-                                                            <button class="btn btn-outline-secondary btn-sm" onclick="changeQty('prod${product.id}', -1)">
-                                                                <i class="bi bi-dash"></i>
-                                                            </button>
-                                                            <input type="number" id="qty-prod${product.id}" class="form-control mx-2 text-center" 
-                                                                   value="1" min="1" max="${product.stock}" style="width: 60px;">
-                                                            <button class="btn btn-outline-secondary btn-sm" onclick="changeQty('prod${product.id}', 1)">
-                                                                <i class="bi bi-plus"></i>
-                                                            </button>
-                                                        </div>
-                                                        <button class="btn btn-primary btn-sm" onclick="addToCartDemo('${product.name}', ${product.id})">
-                                                            <i class="bi bi-cart-plus me-1"></i>Add to Cart
-                                                        </button>
-                                                    </div>
+                // Create content
+                const content = document.createElement('div');
+                content.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
+                content.id = contentId;
+                content.innerHTML = `
+                    <div class="p-4">
+                        <h5>${subcategory.name}</h5>
+                        <div class="row">
+                            ${subcategory.products.map((product, productIndex) => {
+                                const productId = product.id;
+                                const modalProductId = `modal-${categoryName}-${index}-${productIndex}`;
+                                return `
+                                <div class="col-md-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title">${product.name}</h6>
+                                            <p class="card-text">${product.description}</p>
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <span class="h6 mb-0">$${product.price}</span>
+                                                <small class="text-muted">Stock: ${product.stock}</small>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="quantity-controls d-flex align-items-center">
+                                                    <button class="btn btn-outline-secondary btn-sm qty-btn" onclick="changeModalQuantity('${modalProductId}', -1)">
+                                                        <i class="bi bi-dash"></i>
+                                                    </button>
+                                                    <input type="number" id="qty-${modalProductId}" class="form-control mx-2 text-center" 
+                                                           value="1" min="1" max="${product.stock}" style="width: 60px;">
+                                                    <button class="btn btn-outline-secondary btn-sm qty-btn" onclick="changeModalQuantity('${modalProductId}', 1)">
+                                                        <i class="bi bi-plus"></i>
+                                                    </button>
                                                 </div>
+                                                <button class="btn btn-primary btn-sm" onclick="addModalToCart(${productId}, '${modalProductId}', '${product.name}')">
+                                                    <i class="bi bi-cart-plus me-1"></i>Add to Cart
+                                                </button>
                                             </div>
                                         </div>
-                                    `;
-                                }
-                            });
-                        } else {
-                            productsHtml = '<div class="col-12"><p class="text-muted">No products available in this subcategory.</p></div>';
-                        }
-                        
-                        contentHtml += `
-                            <div class="tab-pane fade ${showActive}" id="${tabId}">
-                                <div class="p-4">
-                                    <h5>${subName}</h5>
-                                    <div class="row">
-                                        ${productsHtml}
                                     </div>
                                 </div>
-                            </div>
-                        `;
-                    });
-                    
-                tabsContainer.innerHTML = tabsHtml;
-                contentContainer.innerHTML = contentHtml;
-            } else {
-                console.log('Using hardcoded fallback for', categoryName);
-                useHardcodedFallback(categoryName, tabsContainer, contentContainer);
-            }
-
-            // Show the modal
-            const modalElement = document.getElementById('categoryModal');
-            const modal = new bootstrap.Modal(modalElement);
-            
-            // Add event listener to properly clean up when modal is closed
-            modalElement.addEventListener('hidden.bs.modal', function () {
-                // Remove any lingering backdrops
-                const backdrops = document.querySelectorAll('.modal-backdrop');
-                backdrops.forEach(backdrop => backdrop.remove());
-                
-                // Reset body classes
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-            }, { once: true });
-            
-            modal.show();
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+                contentContainer.appendChild(content);
+            });
         });
     });
 });
+</script>
+<script>
+function changeQuantity(productId, change) {
+    const qtyInput = document.getElementById(`qty-${productId}`);
+    let currentQty = parseInt(qtyInput.value);
+    let newQty = currentQty + change;
 
-// Simple demo functions
-function changeQty(id, change) {
-    const input = document.getElementById('qty-' + id);
-    let qty = parseInt(input.value) + change;
-    const max = parseInt(input.max);
-    if (qty < 1) qty = 1;
-    if (qty > max) qty = max;
-    input.value = qty;
+    // Ensure quantity is within bounds
+    const maxStock = parseInt(qtyInput.max);
+    if (newQty < 1) newQty = 1;
+    if (newQty > maxStock) newQty = maxStock;
+
+    qtyInput.value = newQty;
 }
 
-function addToCartDemo(productName, productId = null) {
-    // For demo products without real IDs, just show alert
-    if (!productId) {
-        alert(productName + ' added to cart! (Demo mode)');
-        return;
-    }
-    
-    // Get quantity from the input field
-    const qtyInput = document.getElementById('qty-prod' + productId);
-    const quantity = qtyInput ? parseInt(qtyInput.value) : 1;
-    
-    // Real cart functionality for actual products
+function addToCart(productId) {
+    const qtyInput = document.getElementById(`qty-${productId}`);
+    const quantity = parseInt(qtyInput.value);
+    const button = document.querySelector(`[data-product="${productId}"].add-to-cart-btn`);
+
+    // Disable button and show loading
+    button.disabled = true;
+    button.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Adding...';
+
+    // Send AJAX request to add to cart
     fetch('{% url "orders:add_to_cart" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
         },
         body: JSON.stringify({
             product_id: productId,
@@ -1345,153 +1291,111 @@ function addToCartDemo(productName, productId = null) {
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Add to cart response:', data);
         if (data.success) {
+            // Update cart count in tabs
+            const cartCountElement = document.getElementById('cart-count');
+            const tabCartCountElement = document.getElementById('tab-cart-count');
+            
+            if (cartCountElement) {
+                cartCountElement.textContent = data.cart_count;
+            }
+            if (tabCartCountElement) {
+                tabCartCountElement.textContent = data.cart_count;
+            }
+
+            // Show success message
             showAlert(data.message, 'success');
-            console.log('Updating cart count to:', data.cart_count);
-            updateCartCount(data.cart_count);
+
+            // Reset quantity to 1
+            qtyInput.value = 1;
+
+            // Reload page to update cart summary
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
         } else {
             showAlert(data.message, 'danger');
         }
     })
     .catch(error => {
-        console.error('Error adding to cart:', error);
-        showAlert('Error adding item to cart', 'danger');
+        console.error('Error:', error);
+        showAlert('An error occurred while adding to cart.', 'danger');
+    })
+    .finally(() => {
+        // Re-enable button
+        button.disabled = false;
+        button.innerHTML = '<i class="bi bi-cart-plus me-1"></i> Add to Cart';
     });
 }
 
-// Function to get CSRF token from cookies
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+// Simple modal cart functions
+function changeModalQuantity(modalProductId, change) {
+    const qtyInput = document.getElementById(`qty-${modalProductId}`);
+    let currentQty = parseInt(qtyInput.value);
+    let newQty = currentQty + change;
+    const maxStock = parseInt(qtyInput.max);
+
+    // Keep quantity between 1 and stock limit
+    if (newQty < 1) newQty = 1;
+    if (newQty > maxStock) newQty = maxStock;
+
+    qtyInput.value = newQty;
+}
+
+function addModalToCart(productId, modalProductId, productName) {
+    const qtyInput = document.getElementById(`qty-${modalProductId}`);
+    const quantity = parseInt(qtyInput.value);
+    
+    // Disable button and show loading
+    const button = event.target;
+    const originalHTML = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Adding...';
+    
+    // Send AJAX request to real cart system
+    fetch('{% url "orders:add_to_cart" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            product_id: productId,
+            quantity: quantity
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update cart count in navigation
+            const cartCountElement = document.getElementById('cart-count');
+            const tabCartCountElement = document.getElementById('tab-cart-count');
+            
+            if (cartCountElement) {
+                cartCountElement.textContent = data.cart_count;
             }
-        }
-    }
-    return cookieValue;
-}
+            if (tabCartCountElement) {
+                tabCartCountElement.textContent = data.cart_count;
+            }
 
-// Function to update cart count display
-function updateCartCount(count) {
-    console.log('updateCartCount called with count:', count);
-    
-    // Method 1: Update just the count span (most efficient)
-    const cartCountSpan = document.getElementById('cartCount');
-    if (cartCountSpan) {
-        cartCountSpan.textContent = count;
-        console.log('Cart count span updated successfully');
-    } else {
-        console.warn('Cart count span not found');
-    }
-    
-    // Method 2: Fallback - update the entire button if span not found
-    const viewCartBtn = document.getElementById('viewCartBtn');
-    if (viewCartBtn && !cartCountSpan) {
-        viewCartBtn.innerHTML = `<i class="bi bi-cart3"></i> View Cart (<span id="cartCount">${count}</span>)`;
-        console.log('Cart button updated successfully');
-    }
-    
-    // Method 3: Final fallback - search by href
-    if (!cartCountSpan && !viewCartBtn) {
-        const btnByHref = document.querySelector('a[href*="view_cart"]');
-        if (btnByHref) {
-            btnByHref.innerHTML = `<i class="bi bi-cart3"></i> View Cart (${count})`;
-            console.log('Cart button updated via href search');
+            // Show success message
+            showAlert(`${productName} added to cart successfully!`, 'success');
+
+            // Reset quantity to 1
+            qtyInput.value = 1;
         } else {
-            console.error('Could not find cart button by any method');
+            showAlert(data.message || 'Failed to add to cart', 'danger');
         }
-    }
-}
-
-// Hardcoded fallback function for categories not in database
-function useHardcodedFallback(categoryName, tabsContainer, contentContainer) {
-    if (categoryName === 'Beverages') {
-        // Simple single-tab layout for Beverages
-        tabsContainer.innerHTML = `
-            <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#beverages-all" type="button">
-                    <i class="bi bi-list-ul me-1"></i>All Beverages
-                </button>
-            </li>
-        `;
-        
-        contentContainer.innerHTML = `
-            <div class="tab-pane fade show active" id="beverages-all">
-                <div class="p-4">
-                    <h5>Beverages</h5>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6 class="card-title">Coffee</h6>
-                                    <p class="card-text">Fresh brewed coffee</p>
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="h6 mb-0">$3.99</span>
-                                        <small class="text-muted">Available</small>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="quantity-controls d-flex align-items-center">
-                                            <button class="btn btn-outline-secondary btn-sm" onclick="changeQty('prod10', -1)">
-                                                <i class="bi bi-dash"></i>
-                                            </button>
-                                            <input type="number" id="qty-prod10" class="form-control mx-2 text-center" 
-                                                   value="1" min="1" max="20" style="width: 60px;">
-                                            <button class="btn btn-outline-secondary btn-sm" onclick="changeQty('prod10', 1)">
-                                                <i class="bi bi-plus"></i>
-                                            </button>
-                                        </div>
-                                        <button class="btn btn-primary btn-sm" onclick="addToCartDemo('Coffee', 10)">
-                                            <i class="bi bi-cart-plus me-1"></i>Add to Cart
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6 class="card-title">Hot Chocolate</h6>
-                                    <p class="card-text">Rich hot chocolate</p>
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="h6 mb-0">$4.99</span>
-                                        <small class="text-muted">Available</small>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="quantity-controls d-flex align-items-center">
-                                            <button class="btn btn-outline-secondary btn-sm" onclick="changeQty('prod12', -1)">
-                                                <i class="bi bi-dash"></i>
-                                            </button>
-                                            <input type="number" id="qty-prod12" class="form-control mx-2 text-center" 
-                                                   value="1" min="1" max="15" style="width: 60px;">
-                                            <button class="btn btn-outline-secondary btn-sm" onclick="changeQty('prod12', 1)">
-                                                <i class="bi bi-plus"></i>
-                                            </button>
-                                        </div>
-                                        <button class="btn btn-primary btn-sm" onclick="addToCartDemo('Hot Chocolate', 12)">
-                                            <i class="bi bi-cart-plus me-1"></i>Add to Cart
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    } else {
-        // Simple fallback for other categories
-        contentContainer.innerHTML = `
-            <div class="p-4">
-                <h5>${categoryName} Items</h5>
-                <p class="text-muted">No items available in this category at the moment.</p>
-            </div>
-        `;
-    }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('An error occurred while adding to cart.', 'danger');
+    })
+    .finally(() => {
+        // Re-enable button
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+    });
 }
 
 function showAlert(message, type) {
@@ -1505,12 +1409,360 @@ function showAlert(message, type) {
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
+
     document.body.appendChild(alertDiv);
+
+    // Auto remove after 4 seconds
     setTimeout(() => {
         if (alertDiv.parentNode) {
             alertDiv.remove();
         }
     }, 4000);
 }
+
+// Event delegation for quantity buttons and add to cart buttons
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize cart count in tabs
+    const tabCartCountElement = document.getElementById('tab-cart-count');
+    
+    if (tabCartCountElement) {
+        tabCartCountElement.textContent = '{{ cart_count|default:0 }}';
+    }
+
+    // Handle quantity buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('qty-btn') || e.target.closest('.qty-btn')) {
+            e.preventDefault();
+            const button = e.target.classList.contains('qty-btn') ? e.target : e.target.closest('.qty-btn');
+            const productId = parseInt(button.getAttribute('data-product'));
+            const action = button.getAttribute('data-action');
+
+            if (action === 'increase') {
+                changeQuantity(productId, 1);
+            } else if (action === 'decrease') {
+                changeQuantity(productId, -1);
+            }
+        }
+
+        // Handle add to cart buttons
+        if (e.target.classList.contains('add-to-cart-btn') || e.target.closest('.add-to-cart-btn')) {
+            e.preventDefault();
+            const button = e.target.classList.contains('add-to-cart-btn') ? e.target : e.target.closest('.add-to-cart-btn');
+            const productId = parseInt(button.getAttribute('data-product'));
+            addToCart(productId);
+        }
+    });
+
+    // Smooth scrolling for tabs
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (e) {
+            // Smooth scroll to top of tab content
+            document.querySelector('.tab-content').scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start' 
+            });
+        });
+    });
+
+    // Enhanced carousel-style category navigation
+    function setupCategoryCarousel() {
+        const categoryTabs = document.querySelector('.category-tabs');
+        const navTabs = document.getElementById('categoryTabs');
+        if (!navTabs || !categoryTabs) return;
+
+        // Function to update fade indicators based on scroll position
+        function updateFadeIndicators() {
+            const scrollLeft = navTabs.scrollLeft;
+            const maxScroll = navTabs.scrollWidth - navTabs.clientWidth;
+            
+            // Show left fade if not at beginning
+            if (scrollLeft > 10) {
+                categoryTabs.classList.add('show-left-fade');
+            } else {
+                categoryTabs.classList.remove('show-left-fade');
+            }
+            
+            // Show right fade if not at end
+            if (scrollLeft < maxScroll - 10) {
+                categoryTabs.classList.add('show-right-fade');
+            } else {
+                categoryTabs.classList.remove('show-right-fade');
+            }
+        }
+
+        // Auto-scroll active tab into center view (carousel style)
+        function centerActiveTab() {
+            const activeTab = navTabs.querySelector('.nav-link.active');
+            if (!activeTab) return;
+            
+            const tabRect = activeTab.getBoundingClientRect();
+            const containerRect = navTabs.getBoundingClientRect();
+            const scrollLeft = navTabs.scrollLeft;
+            
+            // Calculate center position
+            const tabCenter = tabRect.left - containerRect.left + scrollLeft + (tabRect.width / 2);
+            const containerCenter = navTabs.clientWidth / 2;
+            const targetScroll = tabCenter - containerCenter;
+            
+            navTabs.scrollTo({
+                left: Math.max(0, targetScroll),
+                behavior: 'smooth'
+            });
+        }
+
+        // Carousel-style click navigation
+        navTabs.addEventListener('click', function(e) {
+            if (e.target.classList.contains('nav-link')) {
+                setTimeout(() => {
+                    centerActiveTab();
+                    updateFadeIndicators();
+                }, 150);
+            }
+        });
+
+        // Update fade indicators on scroll
+        navTabs.addEventListener('scroll', function() {
+            updateFadeIndicators();
+        });
+
+        // Touch gesture enhancement for mobile carousel
+        let isScrolling = false;
+        navTabs.addEventListener('touchstart', function() {
+            isScrolling = true;
+        });
+        
+        navTabs.addEventListener('touchend', function() {
+            setTimeout(() => {
+                isScrolling = false;
+                updateFadeIndicators();
+            }, 100);
+        });
+
+        // Initialize carousel
+        setTimeout(() => {
+            centerActiveTab();
+            updateFadeIndicators();
+        }, 100);
+
+        // Update on window resize
+        window.addEventListener('resize', function() {
+            setTimeout(() => {
+                centerActiveTab();
+                updateFadeIndicators();
+            }, 200);
+        });
+
+        // Keyboard navigation support for carousel
+        navTabs.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                const focusedTab = document.activeElement;
+                const tabs = Array.from(navTabs.querySelectorAll('.nav-link'));
+                const currentIndex = tabs.indexOf(focusedTab);
+                
+                let newIndex;
+                if (e.key === 'ArrowLeft') {
+                    newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+                } else {
+                    newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
+                }
+                
+                tabs[newIndex].focus();
+                tabs[newIndex].click();
+            }
+        });
+    }
+
+    // Initialize carousel-style navigation
+    setupCategoryCarousel();
+
+    // Enhanced sticky navigation for mobile
+    function setupStickyNavigation() {
+        const navbar = document.querySelector('.navbar');
+        const categoryTabs = document.querySelector('.category-tabs');
+        
+        if (!navbar || !categoryTabs) return;
+
+        let lastScrollTop = 0;
+        let isScrollingUp = true;
+
+        function updateStickyState() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            isScrollingUp = scrollTop < lastScrollTop;
+            lastScrollTop = scrollTop;
+
+            // Add stuck class when scrolled
+            if (scrollTop > 50) {
+                navbar.classList.add('stuck');
+                categoryTabs.classList.add('stuck');
+            } else {
+                navbar.classList.remove('stuck');
+                categoryTabs.classList.remove('stuck');
+            }
+
+            // On mobile, dynamically adjust category tabs position based on actual navbar height
+            if (window.innerWidth <= 768) {
+                const navbarHeight = navbar.offsetHeight;
+                // Reduce the gap by subtracting 5px
+                categoryTabs.style.top = (navbarHeight - 5) + 'px';
+            } else {
+                // Reset to default on desktop
+                categoryTabs.style.top = '0px';
+            }
+        }
+
+        // Throttled scroll listener for better performance
+        let ticking = false;
+        function requestTick() {
+            if (!ticking) {
+                requestAnimationFrame(updateStickyState);
+                ticking = true;
+                setTimeout(() => { ticking = false; }, 16);
+            }
+        }
+
+        window.addEventListener('scroll', requestTick);
+        
+        // Handle orientation change
+        window.addEventListener('orientationchange', function() {
+            setTimeout(updateStickyState, 200);
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            updateStickyState();
+        });
+
+        // Initial setup
+        setTimeout(updateStickyState, 100);
+        
+        // Ensure sticky positioning is applied immediately
+        if (window.innerWidth <= 768) {
+            const navbarHeight = navbar.offsetHeight;
+            categoryTabs.style.position = 'sticky';
+            // Reduce gap by 5px for tighter spacing
+            categoryTabs.style.top = (navbarHeight - 5) + 'px';
+            categoryTabs.style.zIndex = '1040';
+        }
+    }
+
+    // Initialize sticky navigation
+    setupStickyNavigation();
+
+    // Add loading animation style
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Category Modal Functionality - SIMPLE VERSION
+document.addEventListener('DOMContentLoaded', function() {
+    // Real category data from Django template
+    const categoryData = {
+        {% for category in categories %}
+        "{{ category.name }}": {
+            subcategories: [
+                {% for subcategory in category.subcategories.all %}
+                {
+                    name: "{{ subcategory.name }}",
+                    products: [
+                        {% for product in subcategory.products.all %}
+                        {
+                            id: {{ product.id }},
+                            name: "{{ product.name|escapejs }}",
+                            description: "{{ product.description|escapejs }}",
+                            price: {{ product.price }},
+                            stock: {{ product.stock }}
+                        }{% if not forloop.last %},{% endif %}
+                        {% empty %}
+                        {% endfor %}
+                    ]
+                }{% if not forloop.last %},{% endif %}
+                {% empty %}
+                {% endfor %}
+            ]
+        }{% if not forloop.last %},{% endif %}
+        {% empty %}
+        {% endfor %}
+    };
+
+    // Handle category card clicks
+    document.querySelectorAll('.category-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const categoryName = this.getAttribute('data-category-name');
+                
+                // Update modal title
+                document.getElementById('categoryModalLabel').textContent = categoryName + ' Menu';
+
+                // Get containers
+                const tabsContainer = document.getElementById('subcategoryTabs');
+                const contentContainer = document.getElementById('subcategoryTabContent');
+                
+                // Clear existing content
+                tabsContainer.innerHTML = '';
+                contentContainer.innerHTML = '';
+
+                // Get category data
+                const catData = categoryData[categoryName];
+                if (!catData) return;
+
+                // Create tabs and content
+                catData.subcategories.forEach((subcategory, index) => {
+                    const isActive = index === 0;
+                    const tabId = `tab-${categoryName}-${index}`;
+                    const contentId = `content-${categoryName}-${index}`;
+                    
+                    // Create tab
+                    const tab = document.createElement('li');
+                    tab.className = 'nav-item';
+                    tab.innerHTML = `
+                        <button class="nav-link ${isActive ? 'active' : ''}" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#${contentId}" 
+                                type="button">
+                            <i class="bi bi-list-ul me-1"></i>${subcategory.name}
+                        </button>
+                    `;
+                    tabsContainer.appendChild(tab);
+
+                    // Create content
+                    const content = document.createElement('div');
+                    content.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
+                    content.id = contentId;
+                    content.innerHTML = `
+                        <div class="p-4">
+                            <h5>${subcategory.name}</h5>
+                            <div class="row">
+                                ${subcategory.products.map(product => `
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h6 class="card-title">${product}</h6>
+                                                <p class="card-text">Delicious ${product.toLowerCase()}</p>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="h6 mb-0">$12.99</span>
+                                                    <button class="btn btn-primary btn-sm">Add to Cart</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    contentContainer.appendChild(content);
+                });
+            });
+        });
+    });
+});
+
 </script>
 {% endblock %}

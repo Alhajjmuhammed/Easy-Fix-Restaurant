@@ -6,7 +6,7 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = ['name', 'description', 'main_category', 'sub_category', 'price', 
-                 'available_in_stock', 'image', 'is_available', 'preparation_time']
+                 'available_in_stock', 'is_available', 'preparation_time']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Product name'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Product description'}),
@@ -14,7 +14,6 @@ class ProductForm(forms.ModelForm):
             'sub_category': forms.Select(attrs={'class': 'form-select'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'available_in_stock': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'image': forms.FileInput(attrs={'class': 'form-control'}),
             'is_available': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'preparation_time': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
         }
@@ -41,10 +40,11 @@ class ProductForm(forms.ModelForm):
 class MainCategoryForm(forms.ModelForm):
     class Meta:
         model = MainCategory
-        fields = ['name', 'description', 'is_active']
+        fields = ['name', 'description', 'image', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Category name'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Category description'}),
+            'image': forms.FileInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 

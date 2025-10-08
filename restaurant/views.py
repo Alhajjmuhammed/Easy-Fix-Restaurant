@@ -60,13 +60,30 @@ def menu(request):
                 ).prefetch_related('subcategories__products').order_by('name')
                 restaurant_name = owner_filter.restaurant_name
             else:
-                # Administrator can see all categories
+                # Administrator can see all categories OR TESTING MODE
                 categories = MainCategory.objects.filter(is_active=True).prefetch_related('subcategories__products').order_by('name')
                 restaurant_name = "Restaurant System"
+                # For testing: if no categories found, get the first restaurant's categories
+                if not categories.exists():
+                    first_owner = User.objects.filter(role__name='owner').first()
+                    if first_owner:
+                        categories = MainCategory.objects.filter(
+                            is_active=True, 
+                            owner=first_owner
+                        ).prefetch_related('subcategories__products').order_by('name')
+                        restaurant_name = first_owner.restaurant_name
         except Exception:
-            # Fallback - show no categories if user not properly associated
-            categories = MainCategory.objects.none()
-            restaurant_name = "Restaurant"
+            # Fallback - show first restaurant's categories for testing
+            first_owner = User.objects.filter(role__name='owner').first()
+            if first_owner:
+                categories = MainCategory.objects.filter(
+                    is_active=True, 
+                    owner=first_owner
+                ).prefetch_related('subcategories__products').order_by('name')
+                restaurant_name = first_owner.restaurant_name
+            else:
+                categories = MainCategory.objects.none()
+                restaurant_name = "Restaurant"
 
     # Get cart from session - handle empty cart safely
     cart = request.session.get('cart', {})

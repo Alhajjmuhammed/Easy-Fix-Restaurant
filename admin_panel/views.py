@@ -334,6 +334,7 @@ def add_main_category(request):
         
         name = request.POST.get('name')
         description = request.POST.get('description', '')
+        image = request.FILES.get('image')  # Handle image upload
 
         if not name:
             return JsonResponse({'success': False, 'message': 'Category name is required'})
@@ -349,6 +350,7 @@ def add_main_category(request):
         category = MainCategory.objects.create(
             name=name,
             description=description,
+            image=image,  # Add image to creation
             owner=owner_filter if owner_filter else None
         )
 
@@ -359,7 +361,8 @@ def add_main_category(request):
                 'id': category.id,
                 'name': category.name,
                 'description': category.description,
-                'is_active': category.is_active
+                'is_active': category.is_active,
+                'image_url': category.image.url if category.image else None
             }
         })
 
@@ -385,6 +388,7 @@ def edit_main_category(request, category_id):
             
         name = request.POST.get('name')
         description = request.POST.get('description', '')
+        image = request.FILES.get('image')  # Handle image upload
 
         if not name:
             return JsonResponse({'success': False, 'message': 'Category name is required'})
@@ -399,6 +403,8 @@ def edit_main_category(request, category_id):
 
         category.name = name
         category.description = description
+        if image:  # Only update image if a new one is uploaded
+            category.image = image
         category.save()
 
         return JsonResponse({
@@ -408,7 +414,8 @@ def edit_main_category(request, category_id):
                 'id': category.id,
                 'name': category.name,
                 'description': category.description,
-                'is_active': category.is_active
+                'is_active': category.is_active,
+                'image_url': category.image.url if category.image else None
             }
         })
 
@@ -829,10 +836,6 @@ def update_product(request, product_id):
             product.preparation_time = int(request.POST.get('preparation_time'))
         
         product.is_available = request.POST.get('is_available') == 'on'
-        
-        # Handle image upload
-        if request.FILES.get('image'):
-            product.image = request.FILES.get('image')
         
         product.save()
         
