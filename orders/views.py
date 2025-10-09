@@ -39,6 +39,16 @@ def select_table(request):
             except User.DoesNotExist:
                 messages.error(request, 'Selected restaurant not found.')
                 return redirect('accounts:login')
+        else:
+            # SECURITY CHECK: Customer must access via QR code or restaurant link
+            # Prevent direct access to table selection without scanning QR code
+            if request.user.is_authenticated and request.user.is_customer():
+                messages.error(request, 'Unauthorized access. Please scan the restaurant QR code to order.')
+                return redirect('accounts:login')
+            # For non-customer users (staff, admin), allow access
+            elif not request.user.is_authenticated:
+                messages.warning(request, 'Please scan a restaurant QR code to start ordering.')
+                return redirect('accounts:login')
     
     if request.method == 'POST':
         # Handle table selection from visual interface
