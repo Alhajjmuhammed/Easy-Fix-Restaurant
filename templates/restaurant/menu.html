@@ -1646,5 +1646,18 @@ function showAlert(message, type) {
         }
     }, 4000);
 }
+
+// Unregister any service workers to prevent auto-reload
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+            registration.unregister().then(function(success) {
+                if (success) {
+                    console.log('Service worker unregistered successfully');
+                }
+            });
+        }
+    });
+}
 </script>
 {% endblock %}
