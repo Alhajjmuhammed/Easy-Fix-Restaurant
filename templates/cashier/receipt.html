@@ -7,109 +7,261 @@
     <title>Receipt - {{ order.order_number }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        /* Print optimizations */
         @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            /* Hide browser's default headers and footers */
+            @page {
+                margin: 0;
+                size: auto;
+            }
+            
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                color: black !important;
+            }
+            
+            .receipt-container {
+                margin: 0 !important;
+                padding: 5px !important;
+                max-width: none !important;
+                width: 100% !important;
+            }
+            
             body * {
                 visibility: hidden;
             }
+            
             .receipt-container, .receipt-container * {
                 visibility: visible;
             }
+            
             .receipt-container {
                 position: absolute;
                 left: 0;
                 top: 0;
                 width: 100%;
+                max-width: none;
+                margin: 0;
+                padding: 10px;
+                background: white !important;
+                color: black !important;
             }
+            
             .no-print {
                 display: none !important;
             }
+            
+            /* Ensure all text is black for printing */
+            .receipt-container * {
+                color: black !important;
+                background: white !important;
+            }
+            
+            /* Make borders more visible in print */
+            .receipt-header,
+            .receipt-items,
+            .receipt-totals,
+            .receipt-payment {
+                border-bottom: 2px dashed black !important;
+            }
+            
+            .total-row.grand-total {
+                border-top: 2px solid black !important;
+                background: #f8f9fa !important;
+            }
+        }
+        
+        /* Screen styles */
+        body {
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
         }
         
         .receipt-container {
-            max-width: 300px;
-            margin: 20px auto;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.2;
+            max-width: 450px;
+            margin: 5px auto;
+            background: white;
+            padding: 8px;
+            font-family: 'Courier New', 'Liberation Mono', monospace;
+            font-size: 13px;
+            line-height: 1.1;
+            color: #000;
         }
         
         .receipt-header {
             text-align: center;
             border-bottom: 1px dashed #000;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+            padding: 5px 0;
         }
         
         .receipt-title {
             font-size: 16px;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
+            color: #000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .receipt-header div:not(.receipt-title) {
+            font-size: 12px;
+            margin-bottom: 1px;
+            color: #333;
         }
         
         .receipt-info {
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            padding: 2px;
+        }
+        
+        .receipt-info div {
+            margin-bottom: 1px;
+            font-weight: 500;
+            color: #000;
         }
         
         .receipt-items {
             border-bottom: 1px dashed #000;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .receipt-items > div:first-child {
+            font-weight: bold;
+            margin-bottom: 3px;
+            font-size: 13px;
+            color: #000;
+            text-transform: uppercase;
         }
         
         .item-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
+            padding: 0;
         }
         
         .item-name {
             flex: 1;
             text-align: left;
+            font-weight: 500;
+            color: #000;
+        }
+        
+        .item-name small {
+            color: #666 !important;
+            font-style: italic;
         }
         
         .item-price {
             text-align: right;
-            min-width: 60px;
+            min-width: 80px;
+            font-weight: bold;
+            color: #000;
         }
         
         .receipt-totals {
             border-bottom: 1px dashed #000;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
         }
         
         .total-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
+            padding: 0;
+            font-weight: 500;
+            color: #000;
         }
         
         .total-row.grand-total {
             font-weight: bold;
             font-size: 14px;
             border-top: 1px solid #000;
-            padding-top: 5px;
+            padding-top: 3px;
+            margin-top: 3px;
+            color: #000;
         }
         
         .receipt-payment {
             border-bottom: 1px dashed #000;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .receipt-payment > div:first-child {
+            font-weight: bold;
+            margin-bottom: 3px;
+            font-size: 13px;
+            color: #000;
+            text-transform: uppercase;
         }
         
         .receipt-footer {
             text-align: center;
-            font-size: 10px;
+            font-size: 12px;
+            color: #333;
+            line-height: 1.5;
+        }
+        
+        .receipt-footer div:first-child,
+        .receipt-footer div:nth-child(2) {
+            font-weight: bold;
+            font-size: 14px;
+            color: #000;
         }
         
         .receipt-number {
             font-weight: bold;
-            margin: 10px 0;
+            margin: 5px 0;
+            font-size: 14px;
+            color: #000;
+            text-align: center;
+            padding: 3px;
         }
         
         .print-buttons {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 15px;
+        }
+        
+        /* Color overrides for better contrast */
+        .text-danger,
+        .total-row[style*="color: #dc3545"],
+        .total-row[style*="color: #d63384"] {
+            color: #000 !important;
+            font-weight: bold;
+        }
+        
+        .text-danger::before {
+            content: "⚠ ";
+        }
+        
+        /* Enhanced spacing and readability */
+        .item-row:nth-child(even) {
+            margin-left: 0;
+            margin-right: 0;
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        /* Make sure all important text is bold and black */
+        .receipt-container strong,
+        .receipt-container b {
+            color: #000 !important;
+            font-weight: bold !important;
         }
     </style>
 </head>
@@ -156,7 +308,7 @@
                         <div class="item-name">
                             {{ item.quantity }}x {{ item.product.name }}
                             {% if item.product.has_active_promotion %}
-                            <br><small style="color: #666;">  (Happy Hour {{ item.product.happy_hour_discount }}% off)</small>
+                            <br><small>  (Happy Hour {{ item.product.happy_hour_discount }}% off)</small>
                             {% endif %}
                         </div>
                         <div class="item-price">${{ item.get_total_price|floatformat:2 }}</div>
@@ -171,9 +323,9 @@
                     <div>${{ order.get_subtotal|floatformat:2 }}</div>
                 </div>
                 {% if order.get_total_discount > 0 %}
-                <div class="total-row" style="color: #d63384;">
-                    <div>Discount:</div>
-                    <div>-${{ order.get_total_discount|floatformat:2 }}</div>
+                <div class="total-row text-danger">
+                    <div><strong>Discount:</strong></div>
+                    <div><strong>-${{ order.get_total_discount|floatformat:2 }}</strong></div>
                 </div>
                 {% endif %}
                 <div class="total-row">
@@ -214,20 +366,17 @@
                 
                 <!-- Show remaining balance if partial payment -->
                 {% if remaining_balance > 0 %}
-                <div class="total-row" style="color: #dc3545;">
-                    <div>Remaining:</div>
-                    <div>${{ remaining_balance|floatformat:2 }}</div>
+                <div class="total-row text-danger">
+                    <div><strong>Remaining:</strong></div>
+                    <div><strong>${{ remaining_balance|floatformat:2 }}</strong></div>
                 </div>
                 {% endif %}
             </div>
             
             <!-- Footer -->
-            <div class="receipt-footer">
-                <div>Thank you for dining with us!</div>
+            <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+                <div style="font-weight: bold;">Thank you for dining with us!</div>
                 <div>Please come again</div>
-                <br>
-                <div>Receipt generated on</div>
-                <div>{{ "now"|date:"M d, Y H:i" }}</div>
             </div>
         </div>
         
