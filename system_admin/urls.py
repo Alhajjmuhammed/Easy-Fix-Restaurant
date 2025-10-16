@@ -31,6 +31,11 @@ urlpatterns = [
     path('edit-restaurant/<int:restaurant_id>/', views.edit_restaurant, name='edit_restaurant'),
     path('delete-restaurant/<int:restaurant_id>/', views.delete_restaurant, name='delete_restaurant'),
     
+    # Subscription Management
+    path('block-restaurant/<int:restaurant_id>/', views.block_restaurant, name='block_restaurant'),
+    path('unblock-restaurant/<int:restaurant_id>/', views.unblock_restaurant, name='unblock_restaurant'),
+    path('extend-subscription/<int:restaurant_id>/', views.extend_subscription, name='extend_subscription'),
+    
     # Categories Management (CRUD)
     path('create-category/', views.create_category, name='create_category'),
     path('create-subcategory/', views.create_subcategory, name='create_subcategory'),

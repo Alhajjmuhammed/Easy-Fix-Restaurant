@@ -16,7 +16,7 @@ def get_restaurant_name(context):
         return user.get_restaurant_name(request)
     elif user.is_owner():
         return user.restaurant_name or "Restaurant System"
-    elif user.is_kitchen_staff() or user.is_cashier() or user.is_customer_care():
+    elif user.is_kitchen_staff() or user.is_bar_staff() or user.is_cashier() or user.is_customer_care():
         # For staff members, use the get_restaurant_name method
         return user.get_restaurant_name(request)
     

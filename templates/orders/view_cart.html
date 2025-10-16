@@ -248,6 +248,9 @@
 
 {% block extra_js %}
 <script>
+// Get dynamic tax rate from template context
+const TAX_RATE = {{ tax_rate|default:0.08 }};  // Use dynamic tax rate with fallback
+
 function updateQuantity(productId, newQuantity) {
     if (newQuantity < 1) return;
     
@@ -279,7 +282,8 @@ function updateQuantity(productId, newQuantity) {
             
             // Update cart total
             document.getElementById('cart-total').textContent = `$${data.cart_total.toFixed(2)}`;
-            document.getElementById('final-total').textContent = `$${(data.cart_total * 1.08).toFixed(2)}`;
+            // Use dynamic tax rate instead of hardcoded 1.08
+            document.getElementById('final-total').textContent = `$${(data.cart_total * (1 + TAX_RATE)).toFixed(2)}`;
         } else {
             showToast(data.message, 'error');
         }
@@ -312,7 +316,8 @@ function removeFromCart(productId) {
             
             // Update totals
             document.getElementById('cart-total').textContent = `$${data.cart_total.toFixed(2)}`;
-            document.getElementById('final-total').textContent = `$${(data.cart_total * 1.08).toFixed(2)}`;
+            // Use dynamic tax rate instead of hardcoded 1.08
+            document.getElementById('final-total').textContent = `$${(data.cart_total * (1 + TAX_RATE)).toFixed(2)}`;
             
             // If cart is empty, redirect to menu
             if (data.cart_count === 0) {

@@ -249,6 +249,10 @@
                             <li class="nav-item">
                                 <a class="nav-link" href="{% url 'orders:kitchen_dashboard' %}">Kitchen</a>
                             </li>
+                        {% elif user.is_bar_staff %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'orders:bar_dashboard' %}">Bar</a>
+                            </li>
                         {% elif user.is_customer %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{% url 'orders:my_orders' %}">
@@ -296,6 +300,8 @@
                                     <small class="text-muted">| Administrator</small>
                                 {% elif user.is_kitchen_staff %}
                                     <small class="text-muted">| Kitchen Staff</small>
+                                {% elif user.is_bar_staff %}
+                                    <small class="text-muted">| Bar Staff</small>
                                 {% elif user.is_customer_care %}
                                     <small class="text-muted">| Customer Care</small>
                                 {% elif user.is_cashier %}
@@ -355,7 +361,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- ANTI AUTO-RELOAD PROTECTION - Load FIRST before any other scripts -->
-    <script src="{% static 'js/no-auto-reload.js' %}"></script>
+    <script src="{% static 'js/no-auto-reload.js' %}?v=202510131"></script>
     
     <!-- Real-time Order Tracking -->
     <script src="{% static 'js/order-tracking.js' %}"></script>

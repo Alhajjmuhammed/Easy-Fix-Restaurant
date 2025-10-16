@@ -21,10 +21,10 @@ class SubCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'main_category', 'sub_category', 'price', 'available_in_stock', 'is_available']
-    list_filter = ['main_category', 'sub_category', 'is_available', 'created_at']
+    list_display = ['name', 'main_category', 'sub_category', 'price', 'available_in_stock', 'is_available', 'station']
+    list_filter = ['main_category', 'sub_category', 'is_available', 'station', 'created_at']
     search_fields = ['name', 'description']
-    list_editable = ['price', 'available_in_stock', 'is_available']
+    list_editable = ['price', 'available_in_stock', 'is_available', 'station']
 
 @admin.register(HappyHourPromotion)
 class HappyHourPromotionAdmin(admin.ModelAdmin):

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Access Blocked - Restaurant System{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white text-center">
+                    <h4><i class="fas fa-ban"></i> Access Blocked</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-lock fa-5x text-danger mb-3"></i>
+                        <h5 class="text-danger">Restaurant Access Restricted</h5>
+                    </div>
+                    
+                    <div class="alert alert-danger">
+                        <p class="mb-0">
+                            <strong>{{ reason|default:"Your restaurant subscription has expired or access has been restricted." }}</strong>
+                        </p>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <p class="mb-2"><strong>What can you do?</strong></p>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-phone text-primary"></i> Contact your system administrator</li>
+                            <li><i class="fas fa-envelope text-primary"></i> Request subscription renewal</li>
+                            <li><i class="fas fa-credit-card text-primary"></i> Update your payment information</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <p class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Need immediate assistance? Please contact your system administrator to restore access.
+                        </p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'accounts:logout' %}" class="btn btn-secondary">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>
+                        <i class="fas fa-clock"></i> 
+                        System Time: {{ current_time|date:"F d, Y H:i" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.fa-5x {
+    margin: 20px 0;
+}
+
+.alert {
+    border-radius: 10px;
+}
+
+.btn {
+    border-radius: 25px;
+    padding: 10px 30px;
+}
+
+.list-unstyled li {
+    margin: 8px 0;
+}
+</style>
+{% endblock %}

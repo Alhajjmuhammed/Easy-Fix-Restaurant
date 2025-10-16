@@ -82,6 +82,7 @@ class Product(models.Model):
     available_in_stock = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     is_available = models.BooleanField(default=True)
     preparation_time = models.IntegerField(help_text="Time in minutes", default=15)
+    station = models.CharField(max_length=20, choices=[('kitchen', 'Kitchen'), ('bar', 'Bar')], default='kitchen', help_text="Assign to kitchen or bar")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -105,24 +106,34 @@ class Product(models.Model):
         
         # Get current time in the configured timezone
         now = timezone.localtime(timezone.now())
-        current_day = now.weekday() + 1  # Monday=1, Sunday=7
+        current_day = str(now.weekday() + 1)  # Monday=1, Sunday=7
         current_time = now.time()
         
-        # Check for active promotions affecting this product
-        active_promotions = HappyHourPromotion.objects.filter(
+        # Get all potentially active promotions for this product
+        potential_promotions = HappyHourPromotion.objects.filter(
             owner=self.owner,
             is_active=True,
-            start_time__lte=current_time,
-            end_time__gte=current_time,
-            days_of_week__contains=str(current_day)
+            days_of_week__contains=current_day
         ).filter(
             models.Q(products=self) |
             models.Q(main_categories=self.main_category) |
             models.Q(sub_categories=self.sub_category)
         ).order_by('-discount_percentage')  # Get highest discount first
         
-        if active_promotions.exists():
-            promotion = active_promotions.first()
+        # Check each promotion for time-based activation (handles cross-midnight)
+        active_promotions = []
+        for promotion in potential_promotions:
+            if promotion.start_time <= promotion.end_time:
+                # Normal case: start_time < end_time (same day)
+                if promotion.start_time <= current_time <= promotion.end_time:
+                    active_promotions.append(promotion)
+            else:
+                # Cross-midnight case: start_time > end_time
+                if current_time >= promotion.start_time or current_time <= promotion.end_time:
+                    active_promotions.append(promotion)
+        
+        if active_promotions:
+            promotion = active_promotions[0]  # Highest discount first
             discount_amount = self.price * (promotion.discount_percentage / Decimal('100'))
             discounted_price = self.price - discount_amount
             return max(discounted_price, Decimal('0.01'))  # Ensure minimum price
@@ -135,20 +146,32 @@ class Product(models.Model):
         
         # Get current time in the configured timezone
         now = timezone.localtime(timezone.now())
-        current_day = now.weekday() + 1  # Monday=1, Sunday=7
+        current_day = str(now.weekday() + 1)  # Monday=1, Sunday=7
         current_time = now.time()
         
-        return HappyHourPromotion.objects.filter(
+        # Get all potentially active promotions for this product
+        potential_promotions = HappyHourPromotion.objects.filter(
             owner=self.owner,
             is_active=True,
-            start_time__lte=current_time,
-            end_time__gte=current_time,
-            days_of_week__contains=str(current_day)
+            days_of_week__contains=current_day
         ).filter(
             models.Q(products=self) |
             models.Q(main_categories=self.main_category) |
             models.Q(sub_categories=self.sub_category)
-        ).order_by('-discount_percentage').first()
+        ).order_by('-discount_percentage')  # Get highest discount first
+        
+        # Check each promotion for time-based activation (handles cross-midnight)
+        for promotion in potential_promotions:
+            if promotion.start_time <= promotion.end_time:
+                # Normal case: start_time < end_time (same day)
+                if promotion.start_time <= current_time <= promotion.end_time:
+                    return promotion
+            else:
+                # Cross-midnight case: start_time > end_time
+                if current_time >= promotion.start_time or current_time <= promotion.end_time:
+                    return promotion
+                    
+        return None
     
     def has_active_promotion(self):
         """Check if product has an active promotion"""

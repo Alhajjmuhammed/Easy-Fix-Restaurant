@@ -138,28 +138,34 @@
                     <i class="fas fa-utensils"></i> Kitchen Dashboard
                 </h2>
                 <div class="row">
-                    <div class="col-md-3 col-6">
+                    <div class="col-lg-2 col-md-3 col-6">
                         <div class="stat-card">
                             <span class="stat-number">{{ pending_count }}</span>
-                            <span class="stat-label">Pending Orders</span>
+                            <span class="stat-label">Pending</span>
                         </div>
                     </div>
-                    <div class="col-md-3 col-6">
+                    <div class="col-lg-2 col-md-3 col-6">
                         <div class="stat-card">
                             <span class="stat-number">{{ confirmed_count }}</span>
-                            <span class="stat-label">Confirmed Orders</span>
+                            <span class="stat-label">Confirmed</span>
                         </div>
                     </div>
-                    <div class="col-md-3 col-6">
+                    <div class="col-lg-2 col-md-3 col-6">
                         <div class="stat-card">
                             <span class="stat-number">{{ preparing_count }}</span>
                             <span class="stat-label">Preparing</span>
                         </div>
                     </div>
-                    <div class="col-md-3 col-6">
+                    <div class="col-lg-2 col-md-3 col-6">
                         <div class="stat-card">
                             <span class="stat-number">{{ ready_count }}</span>
                             <span class="stat-label">Ready</span>
+                        </div>
+                    </div>
+                    <div class="col-lg-2 col-md-3 col-6">
+                        <div class="stat-card">
+                            <span class="stat-number">{{ served_count }}</span>
+                            <span class="stat-label">Served</span>
                         </div>
                     </div>
                 </div>
@@ -194,6 +200,11 @@
                 <i class="fas fa-thumbs-up"></i> Ready ({{ ready_count }})
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="served-tab" data-bs-toggle="tab" data-bs-target="#served" type="button" role="tab">
+                <i class="fas fa-check-double"></i> Served ({{ served_count }})
+            </button>
+        </li>
     </ul>
 
     <!-- Tab Content -->
@@ -222,7 +233,7 @@
                                     <br><span class="order-status badge bg-warning text-dark">{{ order.get_status_display }}</span>
                                 </td>
                                 <td>
-                                    <i class="fas fa-table"></i> {{ order.table_info.tbl_no }}
+                                    <span class="badge bg-primary">{{ order.table_info.tbl_no }}</span>
                                 </td>
                                 <td>
                                     <i class="fas fa-clock"></i> {{ order.created_at|date:"H:i" }}
@@ -233,12 +244,14 @@
                                 <td>
                                     <ul class="list-unstyled mb-0">
                                         {% for item in order.order_items.all %}
+                                        {% if item.product.station == 'kitchen' %}
                                         <li>
                                             <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
                                             {% if item.special_notes %}
                                                 <br><small class="text-muted">Note: {{ item.special_notes }}</small>
                                             {% endif %}
                                         </li>
+                                        {% endif %}
                                         {% endfor %}
                                     </ul>
                                 </td>
@@ -253,6 +266,10 @@
                                 </td>
                                 <td>
                                     <div class="btn-group-vertical btn-group-sm">
+                                        <!-- KOT Print Button -->
+                                        <a href="{% url 'orders:print_kot' order.id %}" target="_blank" class="btn btn-info btn-sm mb-1">
+                                            <i class="fas fa-print"></i> Print KOT
+                                        </a>
                                         <form method="post" action="{% url 'orders:update_order_status' order.id %}" class="d-inline">
                                             {% csrf_token %}
                                             <input type="hidden" name="status" value="confirmed">
@@ -306,7 +323,7 @@
                                     <br><span class="badge bg-info">{{ order.get_status_display }}</span>
                                 </td>
                                 <td>
-                                    <i class="fas fa-table"></i> {{ order.table_info.tbl_no }}
+                                    <span class="badge bg-primary">{{ order.table_info.tbl_no }}</span>
                                 </td>
                                 <td>
                                     <i class="fas fa-clock"></i> {{ order.updated_at|date:"H:i" }}
@@ -317,12 +334,14 @@
                                 <td>
                                     <ul class="list-unstyled mb-0">
                                         {% for item in order.order_items.all %}
+                                        {% if item.product.station == 'kitchen' %}
                                         <li>
                                             <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
                                             {% if item.special_notes %}
                                                 <br><small class="text-muted">Note: {{ item.special_notes }}</small>
                                             {% endif %}
                                         </li>
+                                        {% endif %}
                                         {% endfor %}
                                     </ul>
                                 </td>
@@ -343,6 +362,9 @@
                                             <i class="fas fa-fire"></i> Start Preparing
                                         </button>
                                     </form>
+                                    <a href="{% url 'orders:print_kot' order.id %}" target="_blank" class="btn btn-info btn-sm">
+                                        <i class="fas fa-print"></i> Print KOT
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -381,7 +403,7 @@
                                     <br><span class="badge bg-warning text-dark">{{ order.get_status_display }}</span>
                                 </td>
                                 <td>
-                                    <i class="fas fa-table"></i> {{ order.table_info.tbl_no }}
+                                    <span class="badge bg-primary">{{ order.table_info.tbl_no }}</span>
                                 </td>
                                 <td>
                                     <i class="fas fa-fire"></i> {{ order.updated_at|date:"H:i" }}
@@ -398,12 +420,14 @@
                                 <td>
                                     <ul class="list-unstyled mb-0">
                                         {% for item in order.order_items.all %}
+                                        {% if item.product.station == 'kitchen' %}
                                         <li>
                                             <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
                                             {% if item.special_notes %}
                                                 <br><small class="text-muted">Note: {{ item.special_notes }}</small>
                                             {% endif %}
                                         </li>
+                                        {% endif %}
                                         {% endfor %}
                                     </ul>
                                 </td>
@@ -424,6 +448,9 @@
                                             <i class="fas fa-check"></i> Mark Ready
                                         </button>
                                     </form>
+                                    <a href="{% url 'orders:print_kot' order.id %}" target="_blank" class="btn btn-info btn-sm">
+                                        <i class="fas fa-print"></i> Reprint KOT
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -450,7 +477,7 @@
                                 <th>Customer</th>
                                 <th>Items</th>
                                 <th>Special Instructions</th>
-                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -461,7 +488,7 @@
                                     <br><span class="badge bg-success">{{ order.get_status_display }}</span>
                                 </td>
                                 <td>
-                                    <i class="fas fa-table"></i> {{ order.table_info.tbl_no }}
+                                    <span class="badge bg-primary">{{ order.table_info.tbl_no }}</span>
                                 </td>
                                 <td>
                                     <i class="fas fa-check"></i> {{ order.updated_at|date:"H:i" }}
@@ -472,12 +499,14 @@
                                 <td>
                                     <ul class="list-unstyled mb-0">
                                         {% for item in order.order_items.all %}
-                                        <li>
-                                            <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
-                                            {% if item.special_notes %}
-                                                <br><small class="text-muted">Note: {{ item.special_notes }}</small>
+                                            {% if item.product.station == 'kitchen' %}
+                                                <li>
+                                                    <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
+                                                    {% if item.special_notes %}
+                                                        <br><small class="text-muted">Note: {{ item.special_notes }}</small>
+                                                    {% endif %}
+                                                </li>
                                             {% endif %}
-                                        </li>
                                         {% endfor %}
                                     </ul>
                                 </td>
@@ -491,9 +520,13 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <div class="alert alert-success p-2 text-center mb-0">
-                                        <i class="fas fa-bell"></i> Ready for pickup!
-                                    </div>
+                                    <form method="post" action="{% url 'orders:update_order_status' order.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="served">
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="fas fa-check-double"></i> Mark Served
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -503,6 +536,49 @@
             {% else %}
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> No orders ready for pickup.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Served Orders Tab -->
+        <div class="tab-pane fade" id="served" role="tabpanel">
+            {% if served_orders %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Order #</th>
+                                <th>Table</th>
+                                <th>Customer</th>
+                                <th>Ordered</th>
+                                <th>Served</th>
+                                <th>Kitchen Items</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in served_orders %}
+                                <tr class="table-light">
+                                    <td><strong>#{{ order.order_number }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ order.table_info.tbl_no }}</span></td>
+                                    <td>{{ order.ordered_by }}</td>
+                                    <td>{{ order.created_at|date:"H:i" }}</td>
+                                    <td><span class="badge bg-success">{{ order.served_at|date:"H:i" }}</span></td>
+                                    <td>
+                                        {% for item in order.order_items.all %}
+                                            {% if item.product.station == 'kitchen' %}
+                                                <div>{{ item.product.name }} <span class="badge bg-secondary">x{{ item.quantity }}</span></div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-check-double fa-3x mb-3"></i>
+                    <p>No served orders yet today</p>
                 </div>
             {% endif %}
         </div>
@@ -635,6 +711,11 @@ document.addEventListener('keydown', function(e) {
                 e.preventDefault();
                 var tab4 = document.getElementById('ready-tab');
                 if (tab4) tab4.click();
+                break;
+            case '5':
+                e.preventDefault();
+                var tab5 = document.getElementById('served-tab');
+                if (tab5) tab5.click();
                 break;
             case 'r':
                 e.preventDefault();

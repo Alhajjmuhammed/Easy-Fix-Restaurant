@@ -3,10 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Count, Q
-from accounts.models import User, Role
+from django.utils import timezone
+from accounts.models import User, Role, RestaurantSubscription, SubscriptionLog
 from restaurant.models import MainCategory, SubCategory, Product, TableInfo
 from orders.models import Order, OrderItem
 from django.contrib.auth.hashers import make_password
+from datetime import date, timedelta, datetime
 import json
 
 @login_required
@@ -125,18 +127,69 @@ def statistics(request):
 
 @login_required
 def manage_all_restaurants(request):
-    """Manage all restaurants system-wide"""
+    """Manage all restaurants system-wide with subscription information"""
     if not request.user.is_administrator():
         messages.error(request, 'Access denied. Administrator privileges required.')
         return redirect('accounts:login')
     
     # Get all owners (restaurants are represented by owners)
-    restaurants = User.objects.filter(role__name='owner').order_by('restaurant_name', 'username')
+    restaurants = User.objects.filter(role__name='owner').select_related('subscription').order_by('restaurant_name', 'username')
     total_restaurants = restaurants.count()
     
+    # Calculate subscription statistics
+    subscription_stats = {
+        'total': total_restaurants,
+        'active': 0,
+        'expired': 0,
+        'blocked': 0,
+        'trial': 0,
+        'grace_period': 0,
+        'expiring_soon': 0,  # Expiring in next 7 days
+    }
+    
+    # Process each restaurant to add subscription info
+    restaurant_data = []
+    for restaurant in restaurants:
+        try:
+            subscription = restaurant.subscription
+            subscription.update_subscription_status()  # Update status
+            
+            # Add subscription info to restaurant object
+            restaurant.subscription_info = subscription.get_subscription_info()
+            
+            # Update statistics
+            if subscription.is_active:
+                subscription_stats['active'] += 1
+                if subscription.days_until_expiration <= 7 and subscription.days_until_expiration > 0:
+                    subscription_stats['expiring_soon'] += 1
+            elif subscription.is_blocked_by_admin:
+                subscription_stats['blocked'] += 1
+            elif subscription.subscription_status == 'expired':
+                subscription_stats['expired'] += 1
+            
+            if subscription.subscription_plan == 'trial':
+                subscription_stats['trial'] += 1
+            
+            if subscription.is_in_grace_period:
+                subscription_stats['grace_period'] += 1
+                
+        except RestaurantSubscription.DoesNotExist:
+            # Restaurant without subscription
+            restaurant.subscription_info = {
+                'status': 'No Subscription',
+                'is_active': False,
+                'plan': 'None',
+                'days_until_expiration': 0,
+                'is_blocked': False,
+                'is_in_grace_period': False
+            }
+        
+        restaurant_data.append(restaurant)
+    
     context = {
-        'restaurants': restaurants,
+        'restaurants': restaurant_data,
         'total_restaurants': total_restaurants,
+        'subscription_stats': subscription_stats,
     }
     
     return render(request, 'system_admin/manage_restaurants.html', context)
@@ -283,6 +336,36 @@ def create_restaurant_owner(request):
             cuisine_type = request.POST.get('cuisine_type', '').strip()
             opening_hours = request.POST.get('opening_hours', '').strip()
             
+            # Subscription management fields
+            quick_period = request.POST.get('quick_period', '')
+            subscription_start_date = request.POST.get('subscription_start_date', '')
+            subscription_end_date = request.POST.get('subscription_end_date', '')
+            subscription_status = request.POST.get('subscription_status', 'active')
+            
+            # Handle subscription dates based on quick_period or custom dates
+            if quick_period and quick_period != 'custom':
+                # Use preset period - calculate dates automatically
+                days = int(quick_period)
+                start_date_obj = date.today()
+                end_date_obj = start_date_obj + timedelta(days=days)
+            elif quick_period == 'custom':
+                # Use custom dates from form
+                if not subscription_start_date or not subscription_end_date:
+                    errors.append('Start and end dates are required when using custom period.')
+                else:
+                    try:
+                        start_date_obj = datetime.strptime(subscription_start_date, '%Y-%m-%d').date()
+                        end_date_obj = datetime.strptime(subscription_end_date, '%Y-%m-%d').date()
+                        
+                        if end_date_obj <= start_date_obj:
+                            errors.append('Subscription end date must be after start date.')
+                    except ValueError:
+                        errors.append('Invalid date format for subscription dates.')
+            else:
+                # Default fallback (30 days)
+                start_date_obj = date.today()
+                end_date_obj = start_date_obj + timedelta(days=30)
+            
             # Enhanced validation
             errors = []
             
@@ -357,7 +440,31 @@ def create_restaurant_owner(request):
                 owner=None
             )
             
+            # Calculate subscription duration
+            subscription_days = (end_date_obj - start_date_obj).days
+            period_type = f"{quick_period} days" if quick_period != 'custom' else 'custom dates'
+            
+            # Create subscription with calculated dates and status
+            subscription = RestaurantSubscription.objects.create(
+                restaurant_owner=new_owner,
+                subscription_start_date=start_date_obj,
+                subscription_end_date=end_date_obj,
+                subscription_status=subscription_status,
+                created_by=request.user
+            )
+            
+            # Log subscription creation
+            SubscriptionLog.objects.create(
+                subscription=subscription,
+                action='created',
+                description=f"Restaurant subscription created ({period_type}): {start_date_obj} to {end_date_obj} ({subscription_days} days) - Status: {subscription_status}",
+                old_status='none',
+                new_status=subscription_status,
+                performed_by=request.user
+            )
+            
             success_msg = f'Restaurant "{restaurant_name}" and owner account "{username}" created successfully!'
+            success_msg += f' Subscription: {subscription_status} from {start_date_obj} to {end_date_obj} ({subscription_days} days).'
             if cuisine_type:
                 success_msg += f' Cuisine type: {cuisine_type.title()}.'
             
@@ -365,6 +472,7 @@ def create_restaurant_owner(request):
             
             # Log the creation for system tracking
             print(f"[SYSTEM ADMIN] New restaurant created: {restaurant_name} by {request.user.username}")
+            print(f"[SYSTEM ADMIN] Subscription created: {subscription_status} from {start_date_obj} to {end_date_obj}")
             
             return redirect('system_admin:manage_restaurants')
             
@@ -407,6 +515,18 @@ def get_restaurant_details(request, restaurant_id):
             'staff': User.objects.filter(owner=restaurant).count(),
         }
         
+        # Get subscription information
+        subscription_data = None
+        if hasattr(restaurant, 'subscription'):
+            subscription = restaurant.subscription
+            subscription_data = {
+                'start_date': subscription.subscription_start_date.strftime('%Y-%m-%d'),
+                'end_date': subscription.subscription_end_date.strftime('%Y-%m-%d'),
+                'subscription_status': subscription.subscription_status,
+                'days_remaining': subscription.days_until_expiration,
+                'is_active': subscription.is_active,
+            }
+        
         data = {
             'id': restaurant.id,
             'restaurant_name': restaurant.restaurant_name,
@@ -422,6 +542,7 @@ def get_restaurant_details(request, restaurant_id):
             'date_joined': restaurant.date_joined.strftime('%B %d, %Y'),
             'is_active': restaurant.is_active,
             'stats': stats,
+            'subscription': subscription_data,
         }
         
         return JsonResponse(data)
@@ -456,6 +577,11 @@ def edit_restaurant(request, restaurant_id):
             password = request.POST.get('password', '').strip()
             confirm_password = request.POST.get('confirm_password', '').strip()
             
+            # Subscription management fields
+            subscription_start_date = request.POST.get('subscription_start_date', '')
+            subscription_end_date = request.POST.get('subscription_end_date', '')
+            subscription_status = request.POST.get('subscription_status', 'active')
+            
             # Validation
             errors = []
             
@@ -474,6 +600,10 @@ def edit_restaurant(request, restaurant_id):
                 errors.append('First name is required.')
             if not last_name:
                 errors.append('Last name is required.')
+            if not subscription_start_date:
+                errors.append('Subscription start date is required.')
+            if not subscription_end_date:
+                errors.append('Subscription end date is required.')
             
             # Format validation
             if username and not username.replace('_', '').isalnum():
@@ -488,6 +618,17 @@ def edit_restaurant(request, restaurant_id):
                     errors.append('Passwords do not match.')
                 if password and len(password) < 6:
                     errors.append('Password must be at least 6 characters long.')
+            
+            # Validate subscription dates
+            if subscription_start_date and subscription_end_date:
+                try:
+                    start_date_obj = datetime.strptime(subscription_start_date, '%Y-%m-%d').date()
+                    end_date_obj = datetime.strptime(subscription_end_date, '%Y-%m-%d').date()
+                    
+                    if end_date_obj <= start_date_obj:
+                        errors.append('Subscription end date must be after start date.')
+                except ValueError:
+                    errors.append('Invalid date format for subscription dates.')
             
             # Check for existing username and email (exclude current restaurant)
             if username and User.objects.filter(username=username).exclude(id=restaurant_id).exists():
@@ -522,7 +663,60 @@ def edit_restaurant(request, restaurant_id):
             
             restaurant.save()
             
+            # Handle subscription update or creation only if dates are provided
+            if subscription_start_date and subscription_end_date:
+                start_date_obj = datetime.strptime(subscription_start_date, '%Y-%m-%d').date()
+                end_date_obj = datetime.strptime(subscription_end_date, '%Y-%m-%d').date()
+                
+                if hasattr(restaurant, 'subscription'):
+                    # Update existing subscription
+                    subscription = restaurant.subscription
+                    old_start_date = subscription.subscription_start_date
+                    old_end_date = subscription.subscription_end_date
+                    old_status = subscription.subscription_status
+                    
+                    subscription.subscription_start_date = start_date_obj
+                    subscription.subscription_end_date = end_date_obj
+                    subscription.subscription_status = subscription_status
+                    subscription.save()
+                    
+                    # Log subscription update
+                    SubscriptionLog.objects.create(
+                        subscription=subscription,
+                        action='updated',
+                        description=f"Subscription updated: dates changed from {old_start_date}-{old_end_date} to {start_date_obj}-{end_date_obj}, status changed from {old_status} to {subscription_status}",
+                        old_status=old_status,
+                        new_status=subscription_status,
+                        performed_by=request.user
+                    )
+                    
+                    subscription_msg = f' Subscription updated: {subscription_status} from {start_date_obj} to {end_date_obj}.'
+                else:
+                    # Create new subscription
+                    subscription = RestaurantSubscription.objects.create(
+                        restaurant_owner=restaurant,
+                        subscription_start_date=start_date_obj,
+                        subscription_end_date=end_date_obj,
+                        subscription_status=subscription_status,
+                        created_by=request.user
+                    )
+                    
+                    # Log subscription creation
+                    SubscriptionLog.objects.create(
+                        subscription=subscription,
+                        action='created',
+                        description=f"New subscription created during edit: {subscription_status} from {start_date_obj} to {end_date_obj}",
+                        old_status='none',
+                        new_status=subscription_status,
+                        performed_by=request.user
+                    )
+                    
+                    subscription_msg = f' New subscription created: {subscription_status} from {start_date_obj} to {end_date_obj}.'
+            else:
+                subscription_msg = ''  # No subscription changes
+            
             success_msg = f'Restaurant "{restaurant_name}" updated successfully!'
+            success_msg += subscription_msg
             if password:
                 success_msg += ' Password has been changed.'
             
@@ -538,7 +732,7 @@ def edit_restaurant(request, restaurant_id):
 
 @login_required
 def delete_restaurant(request, restaurant_id):
-    """Delete a restaurant and all its data"""
+    """Delete a restaurant and all its data with comprehensive cascade deletion"""
     if not request.user.is_administrator():
         messages.error(request, 'Access denied. Administrator privileges required.')
         return redirect('accounts:login')
@@ -548,15 +742,223 @@ def delete_restaurant(request, restaurant_id):
     if request.method == 'POST':
         restaurant_name = restaurant_owner.restaurant_name or f"Restaurant {restaurant_owner.username}"
         
-        # Delete all related data
-        # This will cascade delete due to foreign key relationships
-        restaurant_owner.delete()
+        # Get statistics before deletion for logging
+        stats = {
+            'staff_count': restaurant_owner.owned_users.count(),
+            'categories_count': MainCategory.objects.filter(owner=restaurant_owner).count(),
+            'products_count': Product.objects.filter(main_category__owner=restaurant_owner).count(),
+            'tables_count': TableInfo.objects.filter(owner=restaurant_owner).count(),
+            'orders_count': Order.objects.filter(table_info__owner=restaurant_owner).count(),
+        }
         
-        messages.success(request, f'Restaurant "{restaurant_name}" and all its data have been deleted.')
+        try:
+            # Log subscription deletion if exists
+            if hasattr(restaurant_owner, 'subscription'):
+                subscription = restaurant_owner.subscription
+                SubscriptionLog.objects.create(
+                    subscription=subscription,
+                    action='cancelled',
+                    description=f"Restaurant deleted by administrator: {restaurant_name}",
+                    old_status=subscription.subscription_status,
+                    new_status='cancelled',
+                    performed_by=request.user
+                )
+            
+            # Delete the restaurant owner (this will cascade delete everything)
+            # Due to foreign key relationships, this will delete:
+            # - All staff users (owned_users)
+            # - All categories and subcategories
+            # - All products
+            # - All tables
+            # - All orders and order items
+            # - All payments and transactions
+            # - All waste records
+            # - All reports
+            # - All subscriptions and logs
+            restaurant_owner.delete()
+            
+            # Create detailed success message
+            success_msg = f'Restaurant "{restaurant_name}" has been completely deleted including:'
+            success_msg += f' {stats["staff_count"]} staff members,'
+            success_msg += f' {stats["categories_count"]} categories,'
+            success_msg += f' {stats["products_count"]} products,'
+            success_msg += f' {stats["tables_count"]} tables,'
+            success_msg += f' {stats["orders_count"]} orders,'
+            success_msg += ' and all related data.'
+            
+            messages.success(request, success_msg)
+            
+            # Log the deletion for audit
+            print(f"[SYSTEM ADMIN] Restaurant deleted: {restaurant_name} by {request.user.username}")
+            print(f"[SYSTEM ADMIN] Deleted data: {stats}")
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting restaurant: {str(e)}')
+            print(f"[ERROR] Restaurant deletion failed: {str(e)}")
+        
         return redirect('system_admin:manage_restaurants')
     
     # For GET requests, just redirect back to manage restaurants
-    # No need to show a cancelled message since we use modals
+    return redirect('system_admin:manage_restaurants')
+
+
+def block_restaurant(request, restaurant_id):
+    """Block a restaurant's subscription access"""
+    if not request.user.is_administrator():
+        messages.error(request, 'Access denied. Administrator privileges required.')
+        return redirect('accounts:login')
+    
+    restaurant_owner = get_object_or_404(User, id=restaurant_id, role__name='owner')
+    restaurant_name = restaurant_owner.restaurant_name or f"Restaurant {restaurant_owner.username}"
+    
+    if request.method == 'POST':
+        try:
+            # Get or create subscription
+            subscription, created = RestaurantSubscription.objects.get_or_create(
+                restaurant_owner=restaurant_owner,
+                defaults={
+                    'subscription_status': 'blocked',
+                    'subscription_start_date': timezone.now().date(),
+                    'subscription_end_date': timezone.now().date() + timedelta(days=30)
+                }
+            )
+            
+            if not created:
+                old_status = subscription.subscription_status
+                subscription.subscription_status = 'blocked'
+                subscription.save()
+                
+                # Log the blocking action
+                SubscriptionLog.objects.create(
+                    subscription=subscription,
+                    action='blocked',
+                    description=f"Restaurant blocked by administrator",
+                    old_status=old_status,
+                    new_status='blocked',
+                    performed_by=request.user
+                )
+            
+            messages.success(request, f'Restaurant "{restaurant_name}" has been blocked successfully.')
+            
+        except Exception as e:
+            messages.error(request, f'Error blocking restaurant: {str(e)}')
+    
+    return redirect('system_admin:manage_restaurants')
+
+
+def unblock_restaurant(request, restaurant_id):
+    """Unblock a restaurant's subscription access"""
+    if not request.user.is_administrator():
+        messages.error(request, 'Access denied. Administrator privileges required.')
+        return redirect('accounts:login')
+    
+    restaurant_owner = get_object_or_404(User, id=restaurant_id, role__name='owner')
+    restaurant_name = restaurant_owner.restaurant_name or f"Restaurant {restaurant_owner.username}"
+    
+    if request.method == 'POST':
+        try:
+            if hasattr(restaurant_owner, 'subscription'):
+                subscription = restaurant_owner.subscription
+                old_status = subscription.subscription_status
+                
+                # Determine new status based on dates
+                current_date = timezone.now().date()
+                if current_date <= subscription.subscription_end_date:
+                    new_status = 'active'
+                else:
+                    new_status = 'expired'
+                
+                subscription.subscription_status = new_status
+                subscription.save()
+                
+                # Log the unblocking action
+                SubscriptionLog.objects.create(
+                    subscription=subscription,
+                    action='unblocked',
+                    description=f"Restaurant unblocked by administrator",
+                    old_status=old_status,
+                    new_status=new_status,
+                    performed_by=request.user
+                )
+                
+                messages.success(request, f'Restaurant "{restaurant_name}" has been unblocked successfully.')
+            else:
+                messages.warning(request, f'Restaurant "{restaurant_name}" has no subscription to unblock.')
+                
+        except Exception as e:
+            messages.error(request, f'Error unblocking restaurant: {str(e)}')
+    
+    return redirect('system_admin:manage_restaurants')
+
+
+def extend_subscription(request, restaurant_id):
+    """Extend a restaurant's subscription"""
+    if not request.user.is_administrator():
+        messages.error(request, 'Access denied. Administrator privileges required.')
+        return redirect('accounts:login')
+    
+    restaurant_owner = get_object_or_404(User, id=restaurant_id, role__name='owner')
+    restaurant_name = restaurant_owner.restaurant_name or f"Restaurant {restaurant_owner.username}"
+    
+    if request.method == 'POST':
+        try:
+            days_to_extend = int(request.POST.get('days', 30))
+            
+            if hasattr(restaurant_owner, 'subscription'):
+                subscription = restaurant_owner.subscription
+                old_end_date = subscription.subscription_end_date
+                
+                # Extend from current end date or today, whichever is later
+                current_date = timezone.now().date()
+                extend_from = max(subscription.subscription_end_date, current_date)
+                subscription.subscription_end_date = extend_from + timedelta(days=days_to_extend)
+                
+                # Update status if necessary
+                if subscription.subscription_status in ['expired', 'blocked']:
+                    old_status = subscription.subscription_status
+                    subscription.subscription_status = 'active'
+                else:
+                    old_status = subscription.subscription_status
+                
+                subscription.save()
+                
+                # Log the extension
+                SubscriptionLog.objects.create(
+                    subscription=subscription,
+                    action='extended',
+                    description=f"Subscription extended by {days_to_extend} days (from {old_end_date} to {subscription.subscription_end_date})",
+                    old_status=old_status,
+                    new_status=subscription.subscription_status,
+                    performed_by=request.user
+                )
+                
+                messages.success(request, f'Subscription for "{restaurant_name}" extended by {days_to_extend} days until {subscription.subscription_end_date}.')
+            else:
+                # Create new subscription
+                end_date = timezone.now().date() + timedelta(days=days_to_extend)
+                subscription = RestaurantSubscription.objects.create(
+                    restaurant_owner=restaurant_owner,
+                    subscription_status='active',
+                    subscription_start_date=timezone.now().date(),
+                    subscription_end_date=end_date
+                )
+                
+                SubscriptionLog.objects.create(
+                    subscription=subscription,
+                    action='created',
+                    description=f"New subscription created with {days_to_extend} days",
+                    old_status='none',
+                    new_status='active',
+                    performed_by=request.user
+                )
+                
+                messages.success(request, f'New subscription created for "{restaurant_name}" for {days_to_extend} days until {end_date}.')
+                
+        except ValueError:
+            messages.error(request, 'Invalid number of days specified.')
+        except Exception as e:
+            messages.error(request, f'Error extending subscription: {str(e)}')
+    
     return redirect('system_admin:manage_restaurants')
 
 
@@ -901,6 +1303,7 @@ def create_product(request):
             name = data.get('name', '').strip()
             description = data.get('description', '').strip()
             price = data.get('price')
+            station = data.get('station', 'kitchen')
             availability = data.get('availability', True)
             
             if not main_category_id or not name or not price:
@@ -933,6 +1336,7 @@ def create_product(request):
                 name=name,
                 description=description,
                 price=price,
+                station=station,
                 is_available=availability  # Fixed: use is_available field
             )
             
@@ -960,6 +1364,7 @@ def edit_product(request, product_id):
             name = data.get('name', '').strip()
             description = data.get('description', '').strip()
             price = data.get('price')
+            station = data.get('station', 'kitchen')
             availability = data.get('availability', True)
             
             if not name or not price:
@@ -981,6 +1386,7 @@ def edit_product(request, product_id):
             product.name = name
             product.description = description
             product.price = price
+            product.station = station
             product.is_available = availability  # Fixed: use is_available field
             product.save()
             
@@ -999,6 +1405,7 @@ def edit_product(request, product_id):
             'name': product.name,
             'description': product.description,
             'price': str(product.price),
+            'station': product.station,
             'availability': product.is_available,  # Fixed: use is_available field
             'main_category_id': product.main_category.id,
             'main_category_name': product.main_category.name,

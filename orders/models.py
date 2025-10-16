@@ -69,15 +69,19 @@ class Order(models.Model):
         return total_discount
     
     def get_tax_amount(self):
-        """Calculate tax amount (placeholder - can be configured)"""
-        # For now, using 10% tax rate - this can be made configurable
-        tax_rate = Decimal('0.10')
+        """Calculate tax amount using restaurant owner's configured tax rate"""
+        # Get tax rate from the restaurant owner
+        owner = self.owner
+        tax_rate = owner.tax_rate if owner else Decimal('0.0800')  # Default 8% fallback
         return self.get_subtotal() * tax_rate
     
     @property
     def tax_rate(self):
         """Tax rate as percentage for display"""
-        return 10  # 10% - can be made configurable
+        owner = self.owner
+        if owner:
+            return float(owner.tax_rate * 100)  # Convert decimal to percentage
+        return 8.0  # Default 8% fallback
     
     def get_total(self):
         """Get final total including tax"""
@@ -152,3 +156,29 @@ class OrderItem(models.Model):
         if not self.unit_price:
             self.unit_price = self.product.price
         super().save(*args, **kwargs)
+
+
+class BillRequest(models.Model):
+    """Model to track customer bill requests"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+    ]
+    
+    table_info = models.ForeignKey(TableInfo, on_delete=models.CASCADE, related_name='bill_requests')
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bill_requests')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    completed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='bill_requests_completed')
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Bill Request - Table {self.table_info.tbl_no} ({self.status})"
+    
+    @property
+    def owner(self):
+        """Get the restaurant owner this bill request belongs to"""
+        return self.table_info.owner

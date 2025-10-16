@@ -165,6 +165,12 @@
                                     </td>
                                     <td>
                                         <div class="btn-group-vertical btn-group-sm">
+                                            <a href="{% url 'orders:print_kot' order.id %}" 
+                                               target="_blank"
+                                               class="btn btn-sm btn-info"
+                                               title="Print Kitchen Order Ticket">
+                                                <i class="bi bi-printer"></i> KOT
+                                            </a>
                                             <a href="{% url 'orders:order_detail' order.id %}" 
                                                class="btn btn-sm btn-outline-primary"
                                                title="View Details">
@@ -226,6 +232,42 @@
                 </div>
             </div>
         </div>
+
+        <!-- Bill Requests Section -->
+        {% if pending_bill_requests %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-receipt"></i> Pending Bill Requests
+                    <span class="badge bg-warning ms-2">{{ pending_bill_requests|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for request in pending_bill_requests %}
+                <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                    <div>
+                        <strong><i class="bi bi-table"></i> Table {{ request.table_info.tbl_no }}</strong>
+                        <br>
+                        <small class="text-muted">
+                            <i class="bi bi-person"></i> Requested by: {{ request.requested_by.get_full_name|default:request.requested_by.username }}
+                        </small>
+                        <br>
+                        <small class="text-muted">
+                            <i class="bi bi-clock"></i> {{ request.created_at|date:"H:i" }}
+                        </small>
+                    </div>
+                    <div>
+                        <a href="{% url 'orders:mark_bill_completed' request.id %}" 
+                           class="btn btn-success btn-sm"
+                           onclick="return confirm('Mark this bill request as completed?')">
+                            <i class="bi bi-check-circle"></i> Complete
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
 
         <div class="card shadow-sm">
             <div class="card-header">

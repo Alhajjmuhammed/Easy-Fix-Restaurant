@@ -8,10 +8,11 @@ from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from decimal import Decimal
 import json
 import uuid
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, BillRequest
 from .forms import TableSelectionForm, OrderForm, OrderStatusForm, CancelOrderForm
 from restaurant.models import TableInfo, Product, MainCategory
 from accounts.models import User, get_owner_filter, check_owner_permission
@@ -328,8 +329,20 @@ def view_cart(request):
             'image': item.get('image'),
         })
     
+    # Get restaurant owner's tax rate
+    try:
+        selected_restaurant_id = request.session.get('selected_restaurant_id')
+        if selected_restaurant_id:
+            restaurant_owner = User.objects.get(id=selected_restaurant_id, role__name='owner')
+            tax_rate = float(restaurant_owner.tax_rate)  # Convert decimal to float
+        else:
+            # Use default tax rate from User model default
+            tax_rate = float(Decimal('0.0800'))  # Use same default as model
+    except (User.DoesNotExist, TypeError):
+        # Use default tax rate from User model default
+        tax_rate = float(Decimal('0.0800'))  # Use same default as model
+    
     # Calculate tax and final total
-    tax_rate = 0.08  # 8% tax
     tax_amount = cart_total * tax_rate
     final_total = cart_total + tax_amount
     
@@ -470,6 +483,10 @@ def place_order(request):
                     del request.session['selected_table']
                     request.session.modified = True
                     
+                    # Store order ID in session for KOT auto-print
+                    request.session['new_order_id'] = order.id
+                    request.session['print_kot'] = True
+                    
                     messages.success(request, f'Order {order.order_number} placed successfully!')
                     return redirect('orders:order_confirmation', order_id=order.id)
                     
@@ -482,8 +499,20 @@ def place_order(request):
     # Calculate cart total for display
     cart_total = sum(float(item['price']) * item['quantity'] for item in cart.values())
     
+    # Get restaurant owner's tax rate
+    try:
+        selected_restaurant_id = request.session.get('selected_restaurant_id')
+        if selected_restaurant_id:
+            restaurant_owner = User.objects.get(id=selected_restaurant_id, role__name='owner')
+            tax_rate = float(restaurant_owner.tax_rate)  # Convert decimal to float
+        else:
+            # Use default tax rate from User model default
+            tax_rate = float(Decimal('0.0800'))  # Use same default as model
+    except (User.DoesNotExist, TypeError):
+        # Use default tax rate from User model default
+        tax_rate = float(Decimal('0.0800'))  # Use same default as model
+    
     # Calculate tax and final total
-    tax_rate = 0.08  # 8% tax
     tax_amount = cart_total * tax_rate
     final_total = cart_total + tax_amount
     
@@ -504,7 +533,17 @@ def place_order(request):
 def order_confirmation(request, order_id):
     """Order confirmation page"""
     order = get_object_or_404(Order, id=order_id, ordered_by=request.user)
-    return render(request, 'orders/order_confirmation.html', {'order': order})
+    
+    # Check if we should auto-print KOT
+    should_print_kot = request.session.pop('print_kot', False)
+    new_order_id = request.session.pop('new_order_id', None)
+    
+    context = {
+        'order': order,
+        'should_print_kot': should_print_kot and new_order_id == order.id,
+    }
+    
+    return render(request, 'orders/order_confirmation.html', context)
 
 @login_required
 def my_orders(request):
@@ -592,6 +631,14 @@ def order_detail(request, order_id):
         'paid': {'label': 'Payment Complete', 'icon': 'bi-check-circle-fill', 'class': 'success'},
     }
     
+    # Check for pending bill request for this table
+    pending_bill_request = None
+    if order.table_info and request.user.is_customer():
+        pending_bill_request = BillRequest.objects.filter(
+            table_info=order.table_info,
+            status='pending'
+        ).first()
+    
     context = {
         'order': order,
         'status_progress': status_progress,
@@ -599,6 +646,7 @@ def order_detail(request, order_id):
         'completed_steps': completed_steps,
         'payment_info': payment_progress.get(order.payment_status, payment_progress['unpaid']),
         'is_cancelled': order.status == 'cancelled',
+        'pending_bill_request': pending_bill_request,
     }
     
     return render(request, 'orders/order_detail.html', context)
@@ -659,31 +707,76 @@ def kitchen_dashboard(request):
         messages.error(request, 'You are not associated with any restaurant.')
         return redirect('restaurant:home')
     
-    # Get orders by status
-    pending_orders = base_queryset.filter(status='pending').order_by('-created_at')
-    confirmed_orders = base_queryset.filter(status='confirmed').order_by('-created_at')
-    preparing_orders = base_queryset.filter(status='preparing').order_by('-created_at')
-    ready_orders = base_queryset.filter(status='ready').order_by('-created_at')
+    # Only include orders that have at least one kitchen item
+    def has_kitchen_items(order):
+        return any(item.product.station == 'kitchen' for item in order.order_items.all())
     
-    # Get order counts for different statuses
-    pending_count = pending_orders.count()
-    confirmed_count = confirmed_orders.count()
-    preparing_count = preparing_orders.count()
-    ready_count = ready_orders.count()
+    # Get orders by status and filter for kitchen items only
+    pending_orders = [order for order in base_queryset.filter(status='pending').order_by('-created_at') if has_kitchen_items(order)]
+    confirmed_orders = [order for order in base_queryset.filter(status='confirmed').order_by('-created_at') if has_kitchen_items(order)]
+    preparing_orders = [order for order in base_queryset.filter(status='preparing').order_by('-created_at') if has_kitchen_items(order)]
+    ready_orders = [order for order in base_queryset.filter(status='ready').order_by('-created_at') if has_kitchen_items(order)]
+    served_orders = [order for order in base_queryset.filter(status='served').order_by('-created_at') if has_kitchen_items(order)]
     
     context = {
         'pending_orders': pending_orders,
         'confirmed_orders': confirmed_orders,
         'preparing_orders': preparing_orders,
         'ready_orders': ready_orders,
-        'pending_count': pending_count,
-        'confirmed_count': confirmed_count,
-        'preparing_count': preparing_count,
-        'ready_count': ready_count,
+        'served_orders': served_orders,
+        'pending_count': len(pending_orders),
+        'confirmed_count': len(confirmed_orders),
+        'preparing_count': len(preparing_orders),
+        'ready_count': len(ready_orders),
+        'served_count': len(served_orders),
         'status_choices': Order.STATUS_CHOICES,
     }
     
     return render(request, 'orders/kitchen_dashboard.html', context)
+
+@login_required
+def bar_dashboard(request):
+    """Bar staff dashboard to manage bar orders"""
+    if not (hasattr(request.user, 'role') and request.user.role and request.user.role.name == 'bar'):
+        messages.error(request, 'Access denied. Bar staff privileges required.')
+        return redirect('restaurant:home')
+
+    # Get filter parameters
+    status_filter = request.GET.get('status', 'pending')
+
+    try:
+        owner_filter = get_owner_filter(request.user)
+        base_queryset = Order.objects.select_related('table_info', 'ordered_by', 'confirmed_by').prefetch_related('order_items__product')
+        if owner_filter:
+            base_queryset = base_queryset.filter(table_info__owner=owner_filter)
+    except PermissionDenied:
+        messages.error(request, 'You are not associated with any restaurant.')
+        return redirect('restaurant:home')
+
+    # Only include orders that have at least one bar item
+    def has_bar_items(order):
+        return any(item.product.station == 'bar' for item in order.order_items.all())
+
+    pending_orders = [order for order in base_queryset.filter(status='pending').order_by('-created_at') if has_bar_items(order)]
+    confirmed_orders = [order for order in base_queryset.filter(status='confirmed').order_by('-created_at') if has_bar_items(order)]
+    preparing_orders = [order for order in base_queryset.filter(status='preparing').order_by('-created_at') if has_bar_items(order)]
+    ready_orders = [order for order in base_queryset.filter(status='ready').order_by('-created_at') if has_bar_items(order)]
+    served_orders = [order for order in base_queryset.filter(status='served').order_by('-created_at') if has_bar_items(order)]
+
+    context = {
+        'pending_orders': pending_orders,
+        'confirmed_orders': confirmed_orders,
+        'preparing_orders': preparing_orders,
+        'ready_orders': ready_orders,
+        'served_orders': served_orders,
+        'pending_count': len(pending_orders),
+        'confirmed_count': len(confirmed_orders),
+        'preparing_count': len(preparing_orders),
+        'ready_count': len(ready_orders),
+        'served_count': len(served_orders),
+        'status_choices': Order.STATUS_CHOICES,
+    }
+    return render(request, 'orders/bar_dashboard.html', context)
 
 @login_required
 @require_POST
@@ -717,7 +810,7 @@ def confirm_order(request, order_id):
 @require_POST
 def update_order_status(request, order_id):
     """Update order status"""
-    if not request.user.is_kitchen_staff():
+    if not (request.user.is_kitchen_staff() or request.user.is_bar_staff()):
         return JsonResponse({'success': False, 'message': 'Access denied.'})
     
     try:
@@ -741,6 +834,18 @@ def update_order_status(request, order_id):
         else:
             order = get_object_or_404(Order, id=order_id)
         
+        # Check if bar staff is trying to update an order without bar items
+        if request.user.is_bar_staff():
+            has_bar_items = any(item.product.station == 'bar' for item in order.order_items.all())
+            if not has_bar_items:
+                return JsonResponse({'success': False, 'message': 'Access denied. This order contains no bar items.'})
+        
+        # Check if kitchen staff is trying to update an order without kitchen items
+        if request.user.is_kitchen_staff():
+            has_kitchen_items = any(item.product.station == 'kitchen' for item in order.order_items.all())
+            if not has_kitchen_items:
+                return JsonResponse({'success': False, 'message': 'Access denied. This order contains no kitchen items.'})
+        
         # More flexible status transitions for mobile/real-world usage
         valid_transitions = {
             'pending': ['confirmed', 'cancelled'],
@@ -751,8 +856,8 @@ def update_order_status(request, order_id):
             'cancelled': []
         }
         
-        # Allow kitchen staff to change status backwards for corrections
-        if request.user.is_kitchen_staff() or request.user.is_owner():
+        # Allow kitchen staff and bar staff to change status backwards for corrections
+        if request.user.is_kitchen_staff() or request.user.is_bar_staff() or request.user.is_owner():
             valid_transitions.update({
                 'confirmed': ['pending', 'preparing', 'cancelled'],
                 'preparing': ['confirmed', 'ready', 'cancelled'], 
@@ -824,16 +929,22 @@ def update_order_status(request, order_id):
                 'new_status': order.get_status_display()
             })
         else:
-            # For form submissions, redirect back to kitchen dashboard
+            # For form submissions, redirect based on user role
             messages.success(request, f'Order {order.order_number} updated to {order.get_status_display()}!')
-            return redirect('orders:kitchen_dashboard')
+            if request.user.is_bar_staff():
+                return redirect('orders:bar_dashboard')
+            else:
+                return redirect('orders:kitchen_dashboard')
         
     except Exception as e:
         if request.content_type == 'application/json':
             return JsonResponse({'success': False, 'message': 'An error occurred.'})
         else:
             messages.error(request, 'An error occurred while updating the order.')
-            return redirect('orders:kitchen_dashboard')
+            if request.user.is_bar_staff():
+                return redirect('orders:bar_dashboard')
+            else:
+                return redirect('orders:kitchen_dashboard')
 
 @login_required
 def cancel_order(request, order_id):
@@ -1080,9 +1191,18 @@ def customer_care_dashboard(request):
         'order_items__product'
     ).order_by('-created_at')[:10]
     
+    # Get pending bill requests from the same restaurant
+    pending_bill_requests = []
+    if owner_filter:
+        pending_bill_requests = BillRequest.objects.filter(
+            table_info__owner=owner_filter,
+            status='pending'
+        ).select_related('table_info', 'requested_by').order_by('-created_at')
+    
     context = {
         'stats': stats,
         'recent_orders': recent_orders,
+        'pending_bill_requests': pending_bill_requests,
         'user': request.user,
         'restaurant': owner_filter if owner_filter else None,
         'restaurant_name': owner_filter.restaurant_name if owner_filter else 'Restaurant',
@@ -1317,3 +1437,269 @@ def view_receipt(request, order_id):
     }
     
     return render(request, 'orders/receipt.html', context)
+
+
+@login_required
+def print_kot(request, order_id):
+    """
+    Generate Kitchen Order Ticket (KOT) for kitchen staff
+    
+    KOT is printed when:
+    - Order is placed by customer or customer care
+    - Kitchen staff needs to reprint order details
+    - Order is confirmed and needs kitchen preparation
+    
+    Accessible by: Kitchen staff, Customer care, Cashier, Owner, Administrator
+    """
+    # Get the order
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Permission check - only staff can print KOT
+    if not (request.user.is_kitchen_staff() or 
+            request.user.is_customer_care() or 
+            request.user.is_cashier() or
+            request.user.is_owner() or 
+            request.user.is_administrator()):
+        messages.error(request, 'Access denied. Staff privileges required to print KOT.')
+        return redirect('orders:my_orders')
+    
+    # Check owner permission (ensure user can access this restaurant's order)
+    try:
+        if not request.user.is_administrator():
+            owner_filter = get_owner_filter(request.user)
+            if owner_filter and order.table_info.owner != owner_filter:
+                messages.error(request, 'Access denied. This order belongs to a different restaurant.')
+                return redirect('orders:kitchen_dashboard')
+    except Exception:
+        messages.error(request, 'Permission error. Please contact administrator.')
+        return redirect('orders:kitchen_dashboard')
+    
+    # Context for KOT template
+    context = {
+        'order': order,
+        'now': timezone.now(),
+    }
+    
+    return render(request, 'orders/kot.html', context)
+
+
+@login_required  
+def reprint_kot(request, order_id):
+    """
+    Reprint Kitchen Order Ticket for existing order
+    Same as print_kot but with a different message for tracking
+    """
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Permission check
+    if not (request.user.is_kitchen_staff() or 
+            request.user.is_customer_care() or 
+            request.user.is_cashier() or
+            request.user.is_owner() or 
+            request.user.is_administrator()):
+        messages.error(request, 'Access denied. Staff privileges required.')
+        return redirect('orders:my_orders')
+    
+    # Add reprint message
+    messages.info(request, f'Reprinting KOT for Order #{order.order_number}')
+    
+    context = {
+        'order': order,
+        'now': timezone.now(),
+        'is_reprint': True,
+    }
+    
+    return render(request, 'orders/kot.html', context)
+
+
+@login_required
+def print_bot(request, order_id):
+    """
+    Generate Bar Order Ticket (BOT) for bar staff
+    
+    BOT is printed when:
+    - Order contains bar items
+    - Bar staff needs to prepare drinks
+    - Order is confirmed and needs bar preparation
+    
+    Accessible by: Bar staff, Customer care, Cashier, Owner, Administrator
+    """
+    # Get the order
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Permission check - only staff can print BOT
+    if not (hasattr(request.user, 'role') and request.user.role and request.user.role.name == 'bar') and not (
+            request.user.is_customer_care() or 
+            request.user.is_cashier() or
+            request.user.is_owner() or 
+            request.user.is_administrator()):
+        messages.error(request, 'Access denied. Staff privileges required to print BOT.')
+        return redirect('orders:my_orders')
+    
+    # Check owner permission (ensure user can access this restaurant's order)
+    try:
+        if not request.user.is_administrator():
+            owner_filter = get_owner_filter(request.user)
+            if owner_filter and order.table_info.owner != owner_filter:
+                messages.error(request, 'Access denied. This order belongs to a different restaurant.')
+                return redirect('orders:bar_dashboard')
+    except Exception:
+        messages.error(request, 'Permission error. Please contact administrator.')
+        return redirect('orders:bar_dashboard')
+    
+    # Context for BOT template
+    context = {
+        'order': order,
+        'now': timezone.now(),
+    }
+    
+    return render(request, 'orders/bot.html', context)
+
+
+@login_required  
+def reprint_bot(request, order_id):
+    """
+    Reprint Bar Order Ticket for existing order
+    Same as print_bot but with a different message for tracking
+    """
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Permission check
+    if not (hasattr(request.user, 'role') and request.user.role and request.user.role.name == 'bar') and not (
+            request.user.is_customer_care() or 
+            request.user.is_cashier() or
+            request.user.is_owner() or 
+            request.user.is_administrator()):
+        messages.error(request, 'Access denied. Staff privileges required.')
+        return redirect('orders:my_orders')
+    
+    # Add reprint message
+    messages.info(request, f'Reprinting BOT for Order #{order.order_number}')
+    
+    context = {
+        'order': order,
+        'now': timezone.now(),
+        'is_reprint': True,
+    }
+    
+    return render(request, 'orders/bot.html', context)
+
+
+
+@login_required
+def request_bill(request, table_id):
+    "Customer requests bill for their table"
+    if not request.user.is_customer():
+        messages.error(request, 'Access denied. Customer privileges required.')
+        return redirect('orders:my_orders')
+    
+    try:
+        table = TableInfo.objects.get(id=table_id)
+        
+        # Check if customer belongs to this restaurant
+        if request.user.get_owner() != table.owner:
+            messages.error(request, 'You can only request bill for your restaurant tables.')
+            return redirect('orders:my_orders')
+        
+        # Check if there's already a pending bill request for this table
+        existing_request = BillRequest.objects.filter(
+            table_info=table,
+            status='pending'
+        ).first()
+        
+        if existing_request:
+            messages.warning(request, f'Bill request already submitted for Table {table.tbl_no}. Staff will bring your bill shortly.')
+        else:
+            # Create new bill request
+            bill_request = BillRequest.objects.create(
+                table_info=table,
+                requested_by=request.user,
+                status='pending'
+            )
+            messages.success(request, f'Bill requested for Table {table.tbl_no}! Staff will bring your bill shortly.')
+        
+    except TableInfo.DoesNotExist:
+        messages.error(request, 'Table not found.')
+    
+    return redirect('orders:my_orders')
+
+@login_required
+def request_bill(request, table_id):
+    """Customer requests bill for their table"""
+    if not request.user.is_customer():
+        messages.error(request, 'Access denied. Customer privileges required.')
+        return redirect('orders:my_orders')
+    
+    try:
+        table = TableInfo.objects.get(id=table_id)
+        
+        # Get restaurant context from QR code session (not user ownership)
+        selected_restaurant_id = request.session.get('selected_restaurant_id')
+        
+        if not selected_restaurant_id:
+            messages.error(request, 'Restaurant context not found. Please scan QR code again.')
+            return redirect('orders:my_orders')
+        
+        # Verify the table belongs to the restaurant from QR code session
+        try:
+            current_restaurant = User.objects.get(id=selected_restaurant_id, role__name='owner')
+        except User.DoesNotExist:
+            messages.error(request, 'Invalid restaurant context. Please scan QR code again.')
+            return redirect('orders:my_orders')
+        
+        if table.owner != current_restaurant:
+            messages.error(request, 'You can only request bill for tables in the current restaurant.')
+            return redirect('orders:my_orders')
+        
+        # Check if there's already a pending bill request for this table
+        existing_request = BillRequest.objects.filter(
+            table_info=table,
+            status='pending'
+        ).first()
+        
+        if existing_request:
+            messages.warning(request, f'Bill request already submitted for Table {table.tbl_no}. Staff will bring your bill shortly.')
+        else:
+            # Create new bill request
+            bill_request = BillRequest.objects.create(
+                table_info=table,
+                requested_by=request.user,
+                status='pending'
+            )
+            messages.success(request, f'Bill requested for Table {table.tbl_no}! Staff will bring your bill shortly.')
+        
+    except TableInfo.DoesNotExist:
+        messages.error(request, 'Table not found.')
+    except Exception as e:
+        messages.error(request, f'An error occurred: {e}')
+    
+    return redirect('orders:my_orders')
+
+
+@login_required
+def mark_bill_request_completed(request, request_id):
+    """Staff marks bill request as completed"""
+    if not (request.user.is_customer_care() or request.user.is_owner() or request.user.is_cashier()):
+        messages.error(request, 'Access denied. Staff privileges required.')
+        return redirect('orders:my_orders')
+    
+    try:
+        bill_request = BillRequest.objects.get(id=request_id)
+        
+        # Check ownership
+        if request.user.get_owner() != bill_request.owner:
+            messages.error(request, 'Access denied.')
+            return redirect('orders:customer_care_dashboard')
+        
+        # Mark as completed
+        bill_request.status = 'completed'
+        bill_request.completed_by = request.user
+        bill_request.completed_at = timezone.now()
+        bill_request.save()
+        
+        messages.success(request, f'Bill request for Table {bill_request.table_info.tbl_no} marked as completed.')
+        
+    except BillRequest.DoesNotExist:
+        messages.error(request, 'Bill request not found.')
+    
+    return redirect('orders:customer_care_dashboard')

@@ -422,6 +422,22 @@
                         <button class="btn btn-success">
                             <i class="bi bi-credit-card"></i> Proceed to Payment
                         </button>
+                        
+                        <!-- Check if bill request exists -->
+                        {% if pending_bill_request %}
+                            <div class="alert alert-info mt-2 mb-2">
+                                <i class="bi bi-clock-history"></i> 
+                                <strong>Bill Request Sent!</strong><br>
+                                <small>Requested {{ pending_bill_request.created_at|timesince }} ago. Staff will bring your bill shortly.</small>
+                            </div>
+                            <button class="btn btn-secondary" disabled>
+                                <i class="bi bi-check-circle"></i> Bill Requested
+                            </button>
+                        {% else %}
+                            <a href="{% url 'orders:request_bill' order.table_info.id %}" class="btn btn-warning">
+                                <i class="bi bi-receipt"></i> Request Bill
+                            </a>
+                        {% endif %}
                     {% endif %}
                     <a href="{% url 'orders:select_table' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-plus-circle"></i> Place New Order

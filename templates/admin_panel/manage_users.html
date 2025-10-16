@@ -114,13 +114,15 @@
                         </td>
                         <td>{{ user.email }}</td>
                         <td>
-                            <span class="badge role-badge bg-{% if user.is_superuser %}danger{% elif user.is_owner %}warning{% elif user.is_kitchen_staff %}info{% elif user.is_customer_care %}success{% elif user.is_cashier %}primary{% else %}secondary{% endif %}">
+                            <span class="badge role-badge bg-{% if user.is_superuser %}danger{% elif user.is_owner %}warning{% elif user.is_kitchen_staff %}info{% elif user.is_bar_staff %}primary{% elif user.is_customer_care %}success{% elif user.is_cashier %}dark{% else %}secondary{% endif %}">
                                 {% if user.is_superuser %}
                                     <i class="fas fa-crown me-1"></i>Super Admin
                                 {% elif user.is_owner %}
                                     <i class="fas fa-store me-1"></i>Owner
                                 {% elif user.is_kitchen_staff %}
                                     <i class="fas fa-utensils me-1"></i>Kitchen Staff
+                                {% elif user.is_bar_staff %}
+                                    <i class="fas fa-cocktail me-1"></i>Bar Staff
                                 {% elif user.is_customer_care %}
                                     <i class="fas fa-headset me-1"></i>Customer Care
                                 {% elif user.is_cashier %}

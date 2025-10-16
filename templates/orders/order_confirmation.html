@@ -30,6 +30,9 @@
                     <a href="{% url 'orders:my_orders' %}" class="btn btn-primary">
                         <i class="bi bi-list-ul"></i> View My Orders
                     </a>
+                    <a href="{% url 'orders:print_kot' order.id %}" class="btn btn-success" target="_blank">
+                        <i class="bi bi-printer"></i> Print Kitchen Order Ticket (KOT)
+                    </a>
                     <a href="{% url 'orders:select_table' %}" class="btn btn-outline-primary">
                         <i class="bi bi-plus-circle"></i> Place Another Order
                     </a>
@@ -45,4 +48,25 @@
         </div>
     </div>
 </div>
+
+{% if should_print_kot %}
+<script>
+    // Auto-open KOT in new window when order is placed
+    window.addEventListener('load', function() {
+        // Open KOT in new window for printing
+        const kotWindow = window.open(
+            "{% url 'orders:print_kot' order.id %}", 
+            'KOT_Window',
+            'width=800,height=900,scrollbars=yes,resizable=yes'
+        );
+        
+        // Show notification
+        if (kotWindow) {
+            console.log('KOT window opened for Order #{{ order.order_number }}');
+        } else {
+            alert('Please allow pop-ups to print Kitchen Order Ticket (KOT)');
+        }
+    });
+</script>
+{% endif %}
 {% endblock %}

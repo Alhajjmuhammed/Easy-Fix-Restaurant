@@ -48,13 +48,24 @@
         });
     }
     
-    // AGGRESSIVE: Block ALL setInterval that might reload (except kitchen pages)
+    // AGGRESSIVE: Block ALL setInterval that might reload (except kitchen and bar pages)
     const originalSetInterval = window.setInterval;
     const originalSetTimeout = window.setTimeout;
     
     const isKitchenPage = window.location.pathname.includes('/kitchen/');
+    const isBarPage = window.location.pathname.includes('/bar/');
     
-    if (!isKitchenPage) {
+    console.log('🔍 Page check - Path:', window.location.pathname);
+    console.log('🔍 Is Kitchen Page:', isKitchenPage);
+    console.log('🔍 Is Bar Page:', isBarPage);
+    
+    if (!isKitchenPage && !isBarPage) {
+        console.log('🛡️ Auto-reload protection ENABLED for this page');
+    } else {
+        console.log('✅ Auto-reload protection DISABLED - Kitchen/Bar page detected');
+    }
+    
+    if (!isKitchenPage && !isBarPage) {
         window.setInterval = function(callback, delay) {
             const callbackStr = callback.toString();
             // Block ANY setInterval with reload

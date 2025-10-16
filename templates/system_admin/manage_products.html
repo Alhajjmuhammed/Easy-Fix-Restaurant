@@ -307,6 +307,7 @@
                                 <th>Restaurant</th>
                                 <th>Category</th>
                                 <th>Sub Category</th>
+                                <th>Station</th>
                                 <th>Price</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -334,6 +335,15 @@
                                 <td>{{ product.main_category.owner.restaurant_name }}</td>
                                 <td>{{ product.main_category.name }}</td>
                                 <td>{{ product.sub_category.name|default:"None" }}</td>
+                                <td>
+                                    {% if product.station == 'kitchen' %}
+                                    <span class="badge bg-warning text-dark">🍴 Kitchen</span>
+                                    {% elif product.station == 'bar' %}
+                                    <span class="badge bg-primary">🍸 Bar</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">N/A</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <span class="badge bg-success">${{ product.price }}</span>
                                 </td>
@@ -429,6 +439,14 @@
                         </div>
                     </div>
                     <div class="mb-3">
+                        <label for="createStation" class="form-label">Station *</label>
+                        <select class="form-select" id="createStation" name="station" required>
+                            <option value="kitchen">🍴 Kitchen</option>
+                            <option value="bar">🍸 Bar</option>
+                        </select>
+                        <div class="form-text">Assign this product to Kitchen or Bar station</div>
+                    </div>
+                    <div class="mb-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="createAvailability" name="availability" checked>
                             <label class="form-check-label" for="createAvailability">
@@ -471,19 +489,6 @@
                         <input type="text" class="form-control" id="editSubCategoryName" readonly>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Current Image</label>
-                        <div id="editCurrentImageContainer" style="display: none;">
-                            <img id="editCurrentImage" src="" alt="Product Image" class="current-product-image mb-2">
-                            <br><small class="text-muted">Current product image</small>
-                        </div>
-                        <div id="editNoImageMessage" style="display: none;">
-                            <div class="no-image-placeholder-large">
-                                <i class="fas fa-image text-muted"></i>
-                                <br><small class="text-muted">No image uploaded</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
                         <label for="editName" class="form-label">Product Name *</label>
                         <input type="text" class="form-control" id="editName" name="name" required>
                     </div>
@@ -497,6 +502,14 @@
                             <span class="input-group-text">$</span>
                             <input type="number" class="form-control" id="editPrice" name="price" step="0.01" min="0" required>
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editStation" class="form-label">Station *</label>
+                        <select class="form-select" id="editStation" name="station" required>
+                            <option value="kitchen">🍴 Kitchen</option>
+                            <option value="bar">🍸 Bar</option>
+                        </select>
+                        <div class="form-text">Assign this product to Kitchen or Bar station</div>
                     </div>
                     <div class="mb-3">
                         <div class="form-check">
@@ -664,6 +677,7 @@ document.getElementById('createProductForm').addEventListener('submit', async fu
         name: formData.get('name'),
         description: formData.get('description'),
         price: formData.get('price'),
+        station: formData.get('station'),
         availability: formData.has('availability')
     };
     
@@ -720,24 +734,11 @@ async function editProduct(productId) {
         document.getElementById('editName').value = data.name;
         document.getElementById('editDescription').value = data.description;
         document.getElementById('editPrice').value = data.price;
+        document.getElementById('editStation').value = data.station || 'kitchen';
         document.getElementById('editAvailability').checked = data.availability;
         document.getElementById('editRestaurantName').value = data.restaurant_name;
         document.getElementById('editMainCategoryName').value = data.main_category_name;
         document.getElementById('editSubCategoryName').value = data.sub_category_name || 'None';
-        
-        // Handle product image display
-        const currentImageContainer = document.getElementById('editCurrentImageContainer');
-        const noImageMessage = document.getElementById('editNoImageMessage');
-        const currentImage = document.getElementById('editCurrentImage');
-        
-        if (data.image_url) {
-            currentImage.src = data.image_url;
-            currentImageContainer.style.display = 'block';
-            noImageMessage.style.display = 'none';
-        } else {
-            currentImageContainer.style.display = 'none';
-            noImageMessage.style.display = 'block';
-        }
         
         new bootstrap.Modal(document.getElementById('editProductModal')).show();
     } catch (error) {
@@ -755,6 +756,7 @@ document.getElementById('editProductForm').addEventListener('submit', async func
         name: formData.get('name'),
         description: formData.get('description'),
         price: formData.get('price'),
+        station: formData.get('station'),
         availability: formData.has('availability')
     };
     

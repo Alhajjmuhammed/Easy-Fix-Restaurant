@@ -61,6 +61,7 @@
                                     <th>Contact & Location</th>
                                     <th>Business Info</th>
                                     <th>Status</th>
+                                    <th>Subscription</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -133,6 +134,46 @@
                                         {% endif %}
                                     </td>
                                     <td>
+                                        {% if restaurant.subscription %}
+                                            {% if restaurant.subscription.subscription_status == 'active' %}
+                                                <span class="badge bg-success mb-1"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                                <br><small class="text-muted">Until {{ restaurant.subscription.subscription_end_date|date:"M d, Y" }}</small>
+                                                {% if restaurant.subscription.days_until_expiration > 7 %}
+                                                    <br><small class="text-info"><i class="fas fa-calendar-alt me-1"></i>{{ restaurant.subscription.days_until_expiration }} days remaining</small>
+                                                {% elif restaurant.subscription.days_until_expiration > 0 %}
+                                                    <br><small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>{{ restaurant.subscription.days_until_expiration }} days left</small>
+                                                {% elif restaurant.subscription.days_until_expiration == 0 %}
+                                                    <br><small class="text-danger"><i class="fas fa-clock me-1"></i>Expires today!</small>
+                                                    <br><small class="text-info"><i class="fas fa-shield-alt me-1"></i>Grace period starts</small>
+                                                {% elif restaurant.subscription.days_until_expiration < 0 %}
+                                                    {% if restaurant.subscription.is_in_grace_period %}
+                                                        <br><small class="text-warning"><i class="fas fa-hourglass-half me-1"></i>{{ restaurant.subscription.days_until_expiration|floatformat:0|cut:'-' }} days overdue (Grace period)</small>
+                                                        <br><small class="text-muted">Grace ends in {{ restaurant.subscription.days_in_grace_period }} days</small>
+                                                    {% else %}
+                                                        <br><small class="text-danger"><i class="fas fa-times me-1"></i>{{ restaurant.subscription.days_until_expiration|floatformat:0|cut:'-' }} days overdue</small>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% elif restaurant.subscription.subscription_status == 'expired' %}
+                                                <span class="badge bg-danger mb-1"><i class="fas fa-times-circle me-1"></i>Expired</span>
+                                                <br><small class="text-muted">Ended {{ restaurant.subscription.subscription_end_date|date:"M d, Y" }}</small>
+                                                {% if restaurant.subscription.days_until_expiration < 0 %}
+                                                    <br><small class="text-danger"><i class="fas fa-times me-1"></i>{{ restaurant.subscription.days_until_expiration|floatformat:0|cut:'-' }} days overdue</small>
+                                                {% endif %}
+                                            {% elif restaurant.subscription.subscription_status == 'blocked' %}
+                                                <span class="badge bg-warning mb-1"><i class="fas fa-ban me-1"></i>Blocked</span>
+                                                <br><small class="text-muted">Since {{ restaurant.subscription.updated_at|date:"M d, Y" }}</small>
+                                                {% if restaurant.subscription.subscription_end_date %}
+                                                    <br><small class="text-info"><i class="fas fa-info-circle me-1"></i>Originally until {{ restaurant.subscription.subscription_end_date|date:"M d, Y" }}</small>
+                                                {% endif %}
+                                            {% elif restaurant.subscription.subscription_status == 'grace_period' %}
+                                                <span class="badge bg-warning mb-1"><i class="fas fa-clock me-1"></i>Grace Period</span>
+                                                <br><small class="text-muted">{{ restaurant.subscription.grace_days_remaining }} days left</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="fas fa-question me-1"></i>No Subscription</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
                                         <div class="btn-group-vertical d-grid gap-1" role="group">
                                             <button class="btn btn-sm btn-outline-primary view-restaurant" 
                                                     data-restaurant-id="{{ restaurant.id }}" title="View Details">
@@ -142,6 +183,39 @@
                                                     data-restaurant-id="{{ restaurant.id }}" title="Edit Restaurant">
                                                 <i class="fas fa-edit me-1"></i>Edit
                                             </button>
+                                            
+                                            <!-- Subscription Management Buttons -->
+                                            {% if restaurant.subscription %}
+                                                {% if restaurant.subscription.subscription_status == 'blocked' %}
+                                                    <button class="btn btn-sm btn-outline-success unblock-restaurant" 
+                                                            data-restaurant-id="{{ restaurant.id }}" 
+                                                            data-restaurant-name="{{ restaurant.restaurant_name|default:restaurant.username }}" 
+                                                            title="Unblock Restaurant">
+                                                        <i class="fas fa-unlock me-1"></i>Unblock
+                                                    </button>
+                                                {% else %}
+                                                    <button class="btn btn-sm btn-outline-warning block-restaurant" 
+                                                            data-restaurant-id="{{ restaurant.id }}" 
+                                                            data-restaurant-name="{{ restaurant.restaurant_name|default:restaurant.username }}" 
+                                                            title="Block Restaurant">
+                                                        <i class="fas fa-ban me-1"></i>Block
+                                                    </button>
+                                                {% endif %}
+                                                <button class="btn btn-sm btn-outline-info extend-subscription" 
+                                                        data-restaurant-id="{{ restaurant.id }}" 
+                                                        data-restaurant-name="{{ restaurant.restaurant_name|default:restaurant.username }}" 
+                                                        title="Extend Subscription">
+                                                    <i class="fas fa-calendar-plus me-1"></i>Extend
+                                                </button>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-outline-info extend-subscription" 
+                                                        data-restaurant-id="{{ restaurant.id }}" 
+                                                        data-restaurant-name="{{ restaurant.restaurant_name|default:restaurant.username }}" 
+                                                        title="Create Subscription">
+                                                    <i class="fas fa-plus me-1"></i>Subscribe
+                                                </button>
+                                            {% endif %}
+                                            
                                             <button class="btn btn-sm btn-outline-danger delete-restaurant" 
                                                     data-restaurant-id="{{ restaurant.id }}" 
                                                     data-restaurant-name="{{ restaurant.restaurant_name|default:restaurant.username }}" title="Delete Restaurant">
@@ -414,6 +488,102 @@
                                 <div class="invalid-feedback">
                                     Passwords do not match.
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subscription Management Section -->
+                    <div class="section-header mb-4 mt-5">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="section-title mb-1">
+                                    <i class="fas fa-calendar-check text-primary me-2"></i>
+                                    Subscription Management
+                                </h5>
+                                <p class="text-muted small mb-0">Set custom subscription period and access control</p>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="quick_period" class="form-label fw-semibold">
+                                    <i class="fas fa-calendar-alt text-info me-1"></i>
+                                    Subscription Period
+                                </label>
+                                <select class="form-select form-control-lg" id="quick_period" name="quick_period">
+                                    <option value="30" selected>30 Days (1 Month)</option>
+                                    <option value="7">7 Days</option>
+                                    <option value="15">15 Days</option>
+                                    <option value="90">90 Days (3 Months)</option>
+                                    <option value="180">180 Days (6 Months)</option>
+                                    <option value="365">365 Days (1 Year)</option>
+                                    <option value="custom">Custom Dates</option>
+                                </select>
+                                <div class="form-text">Choose a preset period or select custom dates</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="subscription_status" class="form-label fw-semibold">
+                                    <i class="fas fa-toggle-on text-warning me-1"></i>
+                                    Initial Status
+                                </label>
+                                <select class="form-select form-control-lg" name="subscription_status" id="subscription_status">
+                                    <option value="active">Active - Full access</option>
+                                    <option value="blocked">Blocked - No access</option>
+                                </select>
+                                <div class="form-text">You can block access even if within date range</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Date Fields (Hidden by default) -->
+                    <div id="custom_date_fields" class="row gx-3" style="display: none;">
+                        <div class="col-6 d-flex">
+                            <div class="mb-3 w-100">
+                                <label for="subscription_start_date" class="form-label fw-semibold">
+                                    <i class="fas fa-play-circle text-success me-1"></i>
+                                    Subscription Start Date *
+                                </label>
+                                <input type="date" class="form-control" 
+                                       name="subscription_start_date" id="subscription_start_date" 
+                                       value="{% now 'Y-m-d' %}" required>
+                                <div class="form-text small">When the subscription becomes active</div>
+                                <div class="invalid-feedback">
+                                    Please provide a start date.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 d-flex">
+                            <div class="mb-3 w-100">
+                                <label for="subscription_end_date" class="form-label fw-semibold">
+                                    <i class="fas fa-stop-circle text-danger me-1"></i>
+                                    Subscription End Date *
+                                </label>
+                                <input type="date" class="form-control" 
+                                       name="subscription_end_date" id="subscription_end_date" required>
+                                <div class="form-text small">When the subscription expires</div>
+                                <div class="invalid-feedback">
+                                    Please provide an end date.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Subscription Features:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li><strong>Custom Dates:</strong> Set any start and end date for complete control</li>
+                                    <li><strong>Manual Blocking:</strong> Block access even if subscription is active</li>
+                                    <li><strong>Real-time Control:</strong> Changes take effect immediately</li>
+                                    <li><strong>Grace Period:</strong> 7-day grace period after expiration</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
@@ -712,6 +882,96 @@
                         </div>
                     </div>
 
+                    <!-- Subscription Management Section -->
+                    <div class="section-header mb-4 mt-5">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="section-title mb-1">
+                                    <i class="fas fa-calendar-check text-primary me-2"></i>
+                                    Subscription Management
+                                </h5>
+                                <p class="text-muted small mb-0">Update subscription period and access control</p>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="edit_quick_period" class="form-label fw-semibold">
+                                    <i class="fas fa-calendar-alt text-info me-1"></i>
+                                    Subscription Period
+                                </label>
+                                <select class="form-select form-control-lg" id="edit_quick_period" name="quick_period">
+                                    <option value="custom" selected>Current Custom Dates</option>
+                                    <option value="7">7 Days</option>
+                                    <option value="15">15 Days</option>
+                                    <option value="30">30 Days (1 Month)</option>
+                                    <option value="90">90 Days (3 Months)</option>
+                                    <option value="180">180 Days (6 Months)</option>
+                                    <option value="365">365 Days (1 Year)</option>
+                                </select>
+                                <div class="form-text">Choose a preset period or keep custom dates</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="edit_subscription_status" class="form-label fw-semibold">
+                                    <i class="fas fa-toggle-on text-warning me-1"></i>
+                                    Subscription Status
+                                </label>
+                                <select class="form-select form-control-lg" name="subscription_status" id="edit_subscription_status">
+                                    <option value="active">Active - Full access</option>
+                                    <option value="blocked">Blocked - No access</option>
+                                    <option value="expired">Expired - Grace period</option>
+                                </select>
+                                <div class="form-text">Manual blocking overrides date-based access</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Date Fields (Always visible in edit mode) -->
+                    <div id="edit_custom_date_fields" class="row">
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="edit_subscription_start_date" class="form-label fw-semibold">
+                                    <i class="fas fa-play-circle text-success me-1"></i>
+                                    Subscription Start Date *
+                                </label>
+                                <input type="date" class="form-control" 
+                                       name="subscription_start_date" id="edit_subscription_start_date" required>
+                                <div class="form-text small">When the subscription becomes active</div>
+                                <div class="invalid-feedback">
+                                    Please provide a start date.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="edit_subscription_end_date" class="form-label fw-semibold">
+                                    <i class="fas fa-stop-circle text-danger me-1"></i>
+                                    Subscription End Date *
+                                </label>
+                                <input type="date" class="form-control" 
+                                       name="subscription_end_date" id="edit_subscription_end_date" required>
+                                <div class="form-text small">When the subscription expires</div>
+                                <div class="invalid-feedback">
+                                    Please provide an end date.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Warning:</strong> Changing subscription settings takes effect immediately and will affect restaurant access in real-time.
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -758,6 +1018,49 @@
     </div>
 </div>
 
+<!-- Extend Subscription Modal -->
+<div class="modal fade" id="extendSubscriptionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-plus me-2"></i>
+                    Extend Subscription
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Extend subscription for <strong id="extendRestaurantName"></strong></p>
+                <div class="mb-3">
+                    <label for="extensionDays" class="form-label">Extension Period</label>
+                    <select class="form-select" id="extensionDays" name="days" required>
+                        <option value="7">7 Days</option>
+                        <option value="15">15 Days</option>
+                        <option value="30" selected>30 Days (1 Month)</option>
+                        <option value="90">90 Days (3 Months)</option>
+                        <option value="180">180 Days (6 Months)</option>
+                        <option value="365">365 Days (1 Year)</option>
+                    </select>
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    The subscription will be extended from the current end date or today, whichever is later.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" id="extendForm" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" id="hiddenDays" name="days" value="30">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-calendar-plus me-1"></i>Extend Subscription
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // View restaurant details
@@ -782,6 +1085,33 @@ document.addEventListener('DOMContentLoaded', function() {
             const restaurantId = this.getAttribute('data-restaurant-id');
             const restaurantName = this.getAttribute('data-restaurant-name');
             confirmDelete(restaurantName, restaurantId);
+        });
+    });
+
+    // Block restaurant
+    document.querySelectorAll('.block-restaurant').forEach(button => {
+        button.addEventListener('click', function() {
+            const restaurantId = this.getAttribute('data-restaurant-id');
+            const restaurantName = this.getAttribute('data-restaurant-name');
+            confirmBlock(restaurantName, restaurantId);
+        });
+    });
+
+    // Unblock restaurant
+    document.querySelectorAll('.unblock-restaurant').forEach(button => {
+        button.addEventListener('click', function() {
+            const restaurantId = this.getAttribute('data-restaurant-id');
+            const restaurantName = this.getAttribute('data-restaurant-name');
+            confirmUnblock(restaurantName, restaurantId);
+        });
+    });
+
+    // Extend subscription
+    document.querySelectorAll('.extend-subscription').forEach(button => {
+        button.addEventListener('click', function() {
+            const restaurantId = this.getAttribute('data-restaurant-id');
+            const restaurantName = this.getAttribute('data-restaurant-name');
+            showExtendSubscriptionModal(restaurantName, restaurantId);
         });
     });
 
@@ -821,6 +1151,87 @@ function initializeCreateRestaurantForm() {
 
     passwordInput.addEventListener('input', validatePasswords);
     confirmPasswordInput.addEventListener('input', validatePasswords);
+
+    // Subscription date management
+    const quickPeriodSelect = document.getElementById('quick_period');
+    const startDateInput = document.getElementById('subscription_start_date');
+    const endDateInput = document.getElementById('subscription_end_date');
+    const customDateFields = document.getElementById('custom_date_fields');
+
+    // Show/hide custom date fields based on selection
+    function toggleCustomDateFields() {
+        if (quickPeriodSelect.value === 'custom') {
+            customDateFields.style.display = 'flex';
+            // Make date fields required when custom is selected
+            startDateInput.required = true;
+            endDateInput.required = true;
+        } else {
+            customDateFields.style.display = 'none';
+            // Remove required when using preset periods
+            startDateInput.required = false;
+            endDateInput.required = false;
+            
+            // Auto-calculate dates for preset periods
+            if (quickPeriodSelect.value) {
+                const days = parseInt(quickPeriodSelect.value);
+                const startDate = new Date();
+                const endDate = new Date(startDate);
+                endDate.setDate(endDate.getDate() + days);
+                
+                startDateInput.value = startDate.toISOString().split('T')[0];
+                endDateInput.value = endDate.toISOString().split('T')[0];
+                
+                console.log(`Preset period set: ${days} days from ${startDate.toDateString()} to ${endDate.toDateString()}`);
+            }
+        }
+    }
+
+    // Quick period selection handler
+    quickPeriodSelect.addEventListener('change', toggleCustomDateFields);
+
+    // Initialize on page load
+    toggleCustomDateFields();
+
+    // Validate end date is after start date
+    function validateDates() {
+        if (startDateInput.value && endDateInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            console.log('Validating dates:', {
+                start: startDateInput.value,
+                end: endDateInput.value,
+                startDateObj: startDate,
+                endDateObj: endDate,
+                isEndAfterStart: endDate > startDate
+            });
+            
+            if (endDate <= startDate) {
+                endDateInput.setCustomValidity('End date must be after start date');
+                endDateInput.classList.add('is-invalid');
+                endDateInput.classList.remove('is-valid');
+                console.log('Date validation failed: End date not after start date');
+                return false;
+            } else {
+                endDateInput.setCustomValidity('');
+                endDateInput.classList.remove('is-invalid');
+                endDateInput.classList.add('is-valid');
+                console.log('Date validation passed');
+                return true;
+            }
+        }
+        return true;
+    }
+
+    startDateInput.addEventListener('change', validateDates);
+    endDateInput.addEventListener('change', validateDates);
+
+    // Set default end date (30 days from today)
+    if (!endDateInput.value) {
+        const defaultEndDate = new Date();
+        defaultEndDate.setDate(defaultEndDate.getDate() + 30);
+        endDateInput.value = defaultEndDate.toISOString().split('T')[0];
+    }
 
     // Form validation and submission
     form.addEventListener('submit', function(e) {
@@ -871,6 +1282,12 @@ function initializeCreateRestaurantForm() {
             usernameField.nextElementSibling.textContent = 'Username can only contain letters, numbers, and underscores';
             isValid = false;
             console.log('Invalid username format');
+        }
+
+        // Validate subscription dates
+        if (!validateDates()) {
+            isValid = false;
+            console.log('Invalid subscription dates');
         }
 
         console.log('Form validation result:', isValid);
@@ -1096,6 +1513,24 @@ function editRestaurant(restaurantId) {
             // Additional Settings
             document.getElementById('edit_opening_hours').value = data.opening_hours || '';
             
+            // Subscription Information
+            if (data.subscription) {
+                document.getElementById('edit_subscription_start_date').value = data.subscription.start_date || '';
+                document.getElementById('edit_subscription_end_date').value = data.subscription.end_date || '';
+                document.getElementById('edit_subscription_status').value = data.subscription.subscription_status || 'active';
+            } else {
+                // Set defaults if no subscription exists
+                const today = new Date().toISOString().split('T')[0];
+                const futureDate = new Date();
+                futureDate.setDate(futureDate.getDate() + 30);
+                document.getElementById('edit_subscription_start_date').value = today;
+                document.getElementById('edit_subscription_end_date').value = futureDate.toISOString().split('T')[0];
+                document.getElementById('edit_subscription_status').value = 'active';
+            }
+            
+            // Set up quick period handler for edit form
+            setupEditFormSubscriptionHandlers();
+            
             modal.show();
         })
         .catch(error => {
@@ -1207,6 +1642,114 @@ function confirmDelete(restaurantName, restaurantId) {
     
     const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
     modal.show();
+}
+
+function confirmBlock(restaurantName, restaurantId) {
+    if (confirm(`Are you sure you want to BLOCK "${restaurantName}"? This will prevent access to all restaurant services.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `{% url 'system_admin:block_restaurant' 0 %}`.replace('0', restaurantId);
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function confirmUnblock(restaurantName, restaurantId) {
+    if (confirm(`Are you sure you want to UNBLOCK "${restaurantName}"? This will restore access to restaurant services.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `{% url 'system_admin:unblock_restaurant' 0 %}`.replace('0', restaurantId);
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function showExtendSubscriptionModal(restaurantName, restaurantId) {
+    document.getElementById('extendRestaurantName').textContent = restaurantName;
+    document.getElementById('extendForm').action = `{% url 'system_admin:extend_subscription' 0 %}`.replace('0', restaurantId);
+    
+    // Sync select dropdown with hidden input
+    const extensionDays = document.getElementById('extensionDays');
+    const hiddenDays = document.getElementById('hiddenDays');
+    
+    extensionDays.addEventListener('change', function() {
+        hiddenDays.value = this.value;
+    });
+    
+    // Set initial value
+    hiddenDays.value = extensionDays.value;
+    
+    const modal = new bootstrap.Modal(document.getElementById('extendSubscriptionModal'));
+    modal.show();
+}
+
+function setupEditFormSubscriptionHandlers() {
+    const quickPeriodSelect = document.getElementById('edit_quick_period');
+    const startDateInput = document.getElementById('edit_subscription_start_date');
+    const endDateInput = document.getElementById('edit_subscription_end_date');
+
+    // Quick period handler for edit form  
+    quickPeriodSelect.addEventListener('change', function() {
+        if (this.value && this.value !== 'custom') {
+            const days = parseInt(this.value);
+            const currentEndDate = new Date(endDateInput.value);
+            const newEndDate = new Date(currentEndDate);
+            newEndDate.setDate(newEndDate.getDate() + days);
+            
+            endDateInput.value = newEndDate.toISOString().split('T')[0];
+            
+            // Visual feedback
+            endDateInput.classList.add('is-valid');
+            setTimeout(() => {
+                endDateInput.classList.remove('is-valid');
+            }, 2000);
+            
+            console.log(`Edit form: Extended by ${days} days to ${newEndDate.toDateString()}`);
+            
+            // Reset select to custom
+            this.value = 'custom';
+        }
+    });
+
+    // Validate end date is after start date for edit form
+    function validateEditDates() {
+        if (startDateInput.value && endDateInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            if (endDate <= startDate) {
+                endDateInput.setCustomValidity('End date must be after start date');
+                endDateInput.classList.add('is-invalid');
+                endDateInput.classList.remove('is-valid');
+                return false;
+            } else {
+                endDateInput.setCustomValidity('');
+                endDateInput.classList.remove('is-invalid');
+                endDateInput.classList.add('is-valid');
+                return true;
+            }
+        }
+        return true;
+    }
+
+    startDateInput.addEventListener('change', validateEditDates);
+    endDateInput.addEventListener('change', validateEditDates);
 }
 
 // Add form submission handler for delete

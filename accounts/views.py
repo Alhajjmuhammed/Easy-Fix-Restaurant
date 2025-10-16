@@ -3,16 +3,15 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
-from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from decimal import Decimal
+import json
 from .forms import UserRegistrationForm, UserLoginForm, OwnerRegistrationForm, CustomerRegistrationForm
 from .models import Role, User
 
 @ensure_csrf_cookie
-def csrf_debug_view(request):
-    return render(request, 'csrf_debug.html')
-
-# Temporary CSRF exemption for login - remove this in production
-@csrf_exempt  
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('restaurant:home')
@@ -174,6 +173,37 @@ def qr_code_access(request, qr_code):
             is_active=True
         )
         
+        # Check if restaurant subscription is active
+        from accounts.models import RestaurantSubscription
+        try:
+            subscription = RestaurantSubscription.objects.get(restaurant_owner=restaurant)
+            if not subscription.is_active:
+                # Restaurant is blocked - show unavailable message
+                reason = "This restaurant is temporarily unavailable."
+                if subscription.is_blocked_by_admin:
+                    reason = "This restaurant is temporarily suspended. Please contact the restaurant for more information."
+                elif subscription.subscription_status == 'expired':
+                    reason = "This restaurant is temporarily unavailable due to expired subscription."
+                
+                from django.utils import timezone
+                return render(request, 'accounts/restaurant_unavailable.html', {
+                    'restaurant': restaurant,
+                    'qr_code': qr_code,
+                    'reason': reason,
+                    'subscription_status': subscription.subscription_status,
+                    'current_time': timezone.now()
+                })
+        except RestaurantSubscription.DoesNotExist:
+            # No subscription - restaurant unavailable
+            from django.utils import timezone
+            return render(request, 'accounts/restaurant_unavailable.html', {
+                'restaurant': restaurant,
+                'qr_code': qr_code,
+                'reason': "This restaurant is temporarily unavailable.",
+                'subscription_status': 'no_subscription',
+                'current_time': timezone.now()
+            })
+        
         # Store restaurant in session
         request.session['selected_restaurant_id'] = restaurant.id
         request.session['selected_restaurant_name'] = restaurant.restaurant_name
@@ -221,6 +251,37 @@ def customer_register_view(request, qr_code):
             is_active=True
         )
         
+        # Check if restaurant subscription is active before allowing registration
+        from accounts.models import RestaurantSubscription
+        try:
+            subscription = RestaurantSubscription.objects.get(restaurant_owner=restaurant)
+            if not subscription.is_active:
+                # Restaurant is blocked - show unavailable message instead of registration
+                reason = "This restaurant is temporarily unavailable for new registrations."
+                if subscription.is_blocked_by_admin:
+                    reason = "This restaurant is temporarily suspended. New registrations are not available."
+                elif subscription.subscription_status == 'expired':
+                    reason = "This restaurant is temporarily unavailable due to expired subscription."
+                
+                from django.utils import timezone
+                return render(request, 'accounts/restaurant_unavailable.html', {
+                    'restaurant': restaurant,
+                    'qr_code': qr_code,
+                    'reason': reason,
+                    'subscription_status': subscription.subscription_status,
+                    'current_time': timezone.now()
+                })
+        except RestaurantSubscription.DoesNotExist:
+            # No subscription - registration not available
+            from django.utils import timezone
+            return render(request, 'accounts/restaurant_unavailable.html', {
+                'restaurant': restaurant,
+                'qr_code': qr_code,
+                'reason': "This restaurant is temporarily unavailable for new registrations.",
+                'subscription_status': 'no_subscription',
+                'current_time': timezone.now()
+            })
+        
         # Store restaurant info in session
         request.session['selected_restaurant_id'] = restaurant.id
         request.session['selected_restaurant_name'] = restaurant.restaurant_name
@@ -264,3 +325,48 @@ def customer_register_view(request, qr_code):
     except User.DoesNotExist:
         messages.error(request, 'Invalid QR code. Restaurant not found.')
         return redirect('accounts:login')
+
+
+@login_required
+@require_POST
+def update_tax_rate(request):
+    """Update restaurant owner's tax rate"""
+    if not request.user.is_owner():
+        return JsonResponse({'success': False, 'message': 'Only restaurant owners can update tax rates.'})
+    
+    try:
+        data = json.loads(request.body)
+        tax_rate = Decimal(str(data.get('tax_rate', 0)))
+        
+        # Validate tax rate (0% to 99.99%)
+        if tax_rate < 0 or tax_rate > Decimal('0.9999'):
+            return JsonResponse({'success': False, 'message': 'Tax rate must be between 0% and 99.99%'})
+        
+        # Update user's tax rate
+        request.user.tax_rate = tax_rate
+        request.user.save()
+        
+        return JsonResponse({'success': True, 'message': 'Tax rate updated successfully',
+                            'tax_rate_percentage': float(tax_rate * 100)})
+        
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
+        return JsonResponse({'success': False, 'message': 'Invalid tax rate value'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': 'An error occurred while updating tax rate'})
+
+
+def access_blocked_view(request):
+    """
+    View for displaying access blocked page when subscription is inactive
+    """
+    from django.utils import timezone
+    
+    # Get the reason from URL parameters
+    reason = request.GET.get('reason', 'Your restaurant subscription has expired or access has been restricted.')
+    
+    context = {
+        'reason': reason,
+        'current_time': timezone.now(),
+    }
+    
+    return render(request, 'accounts/access_blocked.html', context)

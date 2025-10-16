@@ -50,6 +50,14 @@
                             <input type="number" min="1" class="form-control" id="editProductPrepTime" name="preparation_time" value="{{ product.preparation_time }}">
                         </div>
                         <div class="col-md-12">
+                            <label for="editProductStation" class="form-label">Station *</label>
+                            <select class="form-select" id="editProductStation" name="station" required>
+                                <option value="kitchen" {% if product.station == 'kitchen' %}selected{% endif %}>🍴 Kitchen</option>
+                                <option value="bar" {% if product.station == 'bar' %}selected{% endif %}>🍸 Bar</option>
+                            </select>
+                            <div class="form-text">Assign this product to Kitchen or Bar station</div>
+                        </div>
+                        <div class="col-md-12">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="editProductAvailable" name="is_available" {% if product.is_available %}checked{% endif %}>
                                 <label class="form-check-label" for="editProductAvailable">

@@ -706,6 +706,129 @@ def get_subcategories(request, main_category_id):
 
 
 @login_required
+@require_POST
+def bulk_delete_main_categories(request):
+    """Bulk delete main categories"""
+    if not (request.user.is_administrator() or request.user.is_owner()):
+        return JsonResponse({'success': False, 'message': 'Access denied'})
+
+    try:
+        data = json.loads(request.body)
+        category_ids = data.get('category_ids', [])
+        
+        if not category_ids:
+            return JsonResponse({'success': False, 'message': 'No categories selected'})
+        
+        owner_filter = get_owner_filter(request.user)
+        
+        # Get categories with owner filtering
+        if owner_filter:
+            categories = MainCategory.objects.filter(id__in=category_ids, owner=owner_filter)
+        else:
+            categories = MainCategory.objects.filter(id__in=category_ids)
+        
+        if not categories.exists():
+            return JsonResponse({'success': False, 'message': 'No valid categories found'})
+        
+        # Count related items before deletion
+        total_subcategories = 0
+        total_products = 0
+        category_names = []
+        
+        for category in categories:
+            category_names.append(category.name)
+            subcategories = category.subcategories.all()
+            total_subcategories += subcategories.count()
+            for subcategory in subcategories:
+                total_products += subcategory.products.count()
+        
+        # Delete categories (cascades to subcategories and products)
+        deleted_count = categories.count()
+        categories.delete()
+        
+        # Build success message
+        if deleted_count == 1:
+            message = f'Main category "{category_names[0]}" deleted successfully'
+        else:
+            message = f'{deleted_count} main categories deleted successfully'
+        
+        if total_subcategories > 0:
+            message += f' (including {total_subcategories} subcategories'
+            if total_products > 0:
+                message += f' and {total_products} products'
+            message += ')'
+        elif total_products > 0:
+            message += f' (including {total_products} products)'
+
+        return JsonResponse({
+            'success': True,
+            'message': message
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
+@require_POST
+def bulk_delete_subcategories(request):
+    """Bulk delete subcategories"""
+    if not (request.user.is_administrator() or request.user.is_owner()):
+        return JsonResponse({'success': False, 'message': 'Access denied'})
+
+    try:
+        data = json.loads(request.body)
+        subcategory_ids = data.get('subcategory_ids', [])
+        
+        if not subcategory_ids:
+            return JsonResponse({'success': False, 'message': 'No subcategories selected'})
+        
+        owner_filter = get_owner_filter(request.user)
+        
+        # Get subcategories with owner filtering
+        if owner_filter:
+            subcategories = SubCategory.objects.filter(id__in=subcategory_ids, main_category__owner=owner_filter)
+        else:
+            subcategories = SubCategory.objects.filter(id__in=subcategory_ids)
+        
+        if not subcategories.exists():
+            return JsonResponse({'success': False, 'message': 'No valid subcategories found'})
+        
+        # Count related products before deletion
+        total_products = 0
+        subcategory_names = []
+        
+        for subcategory in subcategories:
+            subcategory_names.append(subcategory.name)
+            total_products += subcategory.products.count()
+        
+        # Delete subcategories (cascades to products)
+        deleted_count = subcategories.count()
+        subcategories.delete()
+        
+        # Build success message
+        if deleted_count == 1:
+            message = f'Subcategory "{subcategory_names[0]}" deleted successfully'
+        else:
+            message = f'{deleted_count} subcategories deleted successfully'
+        
+        if total_products > 0:
+            message += f' (including {total_products} products)'
+
+        return JsonResponse({
+            'success': True,
+            'message': message
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
 @require_http_methods(["POST"])
 def add_product(request):
     """Add new product"""
@@ -854,6 +977,9 @@ def update_product(request, product_id):
         
         if request.POST.get('preparation_time'):
             product.preparation_time = int(request.POST.get('preparation_time'))
+        
+        if request.POST.get('station'):
+            product.station = request.POST.get('station')
         
         product.is_available = request.POST.get('is_available') == 'on'
         
@@ -1799,12 +1925,7 @@ def delete_order(request, order_id):
         order = get_object_or_404(Order, id=order_id)
         order_number = order.order_number
         
-        # Only allow deletion of pending or cancelled orders
-        if order.status not in ['pending', 'cancelled']:
-            return JsonResponse({
-                'success': False, 
-                'message': 'Only pending or cancelled orders can be deleted'
-            })
+        # Allow deletion of orders in any status (admin has full control)
         
         order.delete()
         
@@ -1881,6 +2002,56 @@ def profile(request):
                 
             except Exception as e:
                 messages.error(request, f"Error changing password: {str(e)}")
+        
+        elif action == 'update_restaurant':
+            # Update restaurant information (for owners only)
+            try:
+                if not request.user.is_owner():
+                    messages.error(request, "Only restaurant owners can update restaurant information.")
+                    return redirect('admin_panel:profile')
+                
+                restaurant_name = request.POST.get('restaurant_name', '').strip()
+                restaurant_description = request.POST.get('restaurant_description', '').strip()
+                tax_rate_percentage = request.POST.get('tax_rate_percentage', '').strip()
+                
+                # Validation
+                if not restaurant_name:
+                    messages.error(request, "Restaurant name is required.")
+                    return redirect('admin_panel:profile')
+                
+                # Validate tax rate
+                try:
+                    if tax_rate_percentage:
+                        tax_rate_float = float(tax_rate_percentage)
+                        if tax_rate_float < 0 or tax_rate_float > 99.99:
+                            messages.error(request, "Tax rate must be between 0% and 99.99%.")
+                            return redirect('admin_panel:profile')
+                        
+                        # Convert percentage to decimal for storage
+                        tax_rate_decimal = Decimal(str(tax_rate_float / 100))
+                    else:
+                        # Use default tax rate from User model default
+                        tax_rate_decimal = Decimal('0.0800')  # Same as User model default
+                        
+                except (ValueError, InvalidOperation):
+                    messages.error(request, "Invalid tax rate. Please enter a valid number.")
+                    return redirect('admin_panel:profile')
+                
+                # Update restaurant information
+                request.user.restaurant_name = restaurant_name
+                request.user.restaurant_description = restaurant_description
+                request.user.tax_rate = tax_rate_decimal
+                
+                # Generate QR code if it doesn't exist
+                if not request.user.restaurant_qr_code:
+                    request.user.generate_qr_code()
+                
+                request.user.save()
+                messages.success(request, "Restaurant information updated successfully.")
+                
+            except Exception as e:
+                messages.error(request, f"Error updating restaurant: {str(e)}")
+        
         return redirect('admin_panel:profile')
     
     context = {
@@ -2020,6 +2191,7 @@ def import_products_csv(request):
         csv_data = csv.DictReader(io.StringIO(decoded_file))
         
         imported_count = 0
+        updated_count = 0
         error_count = 0
         errors = []
         
@@ -2091,18 +2263,12 @@ def import_products_csv(request):
                         )
                         messages.info(request, f"Created sub category '{sub_category_name}' under '{main_category_name}'.")
                 
-                # Check if product already exists
-                existing_product = Product.objects.filter(
-                    name__iexact=name,
-                    main_category=main_category
-                ).first()
+                # Get station (default to kitchen if not specified)
+                station = row.get('station', '').strip().lower()
+                if station not in ['kitchen', 'bar']:
+                    station = 'kitchen'  # Default to kitchen
                 
-                if existing_product:
-                    errors.append(f"Row {row_num}: Product '{name}' already exists in '{main_category_name}'")
-                    error_count += 1
-                    continue
-                
-                # Create product
+                # Prepare product data
                 product_data = {
                     'name': name,
                     'description': row.get('description', '').strip(),
@@ -2112,9 +2278,24 @@ def import_products_csv(request):
                     'available_in_stock': max(0, int(row.get('available_in_stock', 0) or 0)),
                     'is_available': str(row.get('is_available', 'true')).lower() in ['true', '1', 'yes', 'available'],
                     'preparation_time': max(1, int(row.get('preparation_time', 15) or 15)),
+                    'station': station,
                 }
                 
-                Product.objects.create(**product_data)
+                # Check if product already exists - UPDATE if exists, CREATE if not
+                existing_product = Product.objects.filter(
+                    name__iexact=name,
+                    main_category=main_category
+                ).first()
+                
+                if existing_product:
+                    # Update existing product
+                    for field, value in product_data.items():
+                        setattr(existing_product, field, value)
+                    existing_product.save()
+                    updated_count += 1
+                else:
+                    # Create new product
+                    Product.objects.create(**product_data)
                 imported_count += 1
                 
             except Exception as e:
@@ -2123,8 +2304,14 @@ def import_products_csv(request):
                 continue
         
         # Show results
+        success_messages = []
         if imported_count > 0:
-            messages.success(request, f'Successfully imported {imported_count} products!')
+            success_messages.append(f'Created {imported_count} new products')
+        if updated_count > 0:
+            success_messages.append(f'Updated {updated_count} existing products')
+        
+        if success_messages:
+            messages.success(request, f'Import completed! {", ".join(success_messages)}.')
         
         if error_count > 0:
             error_message = f'{error_count} errors occurred during import:'
@@ -2134,7 +2321,7 @@ def import_products_csv(request):
                 error_message += '\n' + '\n'.join(errors[:10]) + f'\n... and {len(errors) - 10} more errors'
             messages.error(request, error_message)
         
-        if imported_count == 0 and error_count == 0:
+        if imported_count == 0 and updated_count == 0 and error_count == 0:
             messages.warning(request, 'No data found in the CSV file.')
             
     except Exception as e:
@@ -2212,12 +2399,15 @@ def import_products_excel(request):
                     col_mapping['is_available'] = i
                 elif 'time' in header and 'prep' in header:
                     col_mapping['preparation_time'] = i
+                elif 'station' in header:
+                    col_mapping['station'] = i
             
             if 'name' not in col_mapping or 'price' not in col_mapping or 'main_category' not in col_mapping:
                 messages.error(request, 'Excel file must contain columns for Name, Price, and Main Category.')
                 return redirect('admin_panel:manage_products')
             
             imported_count = 0
+            updated_count = 0
             error_count = 0
             errors = []
             
@@ -2284,18 +2474,7 @@ def import_products_excel(request):
                                 error_count += 1
                                 continue
                     
-                    # Check if product exists
-                    existing_product = Product.objects.filter(
-                        name__iexact=name,
-                        main_category=main_category
-                    ).first()
-                    
-                    if existing_product:
-                        errors.append(f"Row {row_num}: Product '{name}' already exists")
-                        error_count += 1
-                        continue
-                    
-                    # Create product
+                    # Prepare product data
                     product_data = {
                         'name': name,
                         'description': str(row[col_mapping.get('description', 0)] or '').strip(),
@@ -2313,7 +2492,28 @@ def import_products_excel(request):
                     else:
                         product_data['is_available'] = True
                     
-                    Product.objects.create(**product_data)
+                    # Handle station (default to kitchen if not specified)
+                    if 'station' in col_mapping:
+                        station = str(row[col_mapping['station']] or '').strip().lower()
+                        product_data['station'] = station if station in ['kitchen', 'bar'] else 'kitchen'
+                    else:
+                        product_data['station'] = 'kitchen'
+                    
+                    # Check if product exists - UPDATE if exists, CREATE if not
+                    existing_product = Product.objects.filter(
+                        name__iexact=name,
+                        main_category=main_category
+                    ).first()
+                    
+                    if existing_product:
+                        # Update existing product
+                        for field, value in product_data.items():
+                            setattr(existing_product, field, value)
+                        existing_product.save()
+                        updated_count += 1
+                    else:
+                        # Create new product
+                        Product.objects.create(**product_data)
                     imported_count += 1
                     
                 except Exception as e:
@@ -2324,8 +2524,14 @@ def import_products_excel(request):
             workbook.close()
             
             # Show results
+            success_messages = []
             if imported_count > 0:
-                messages.success(request, f'Successfully imported {imported_count} products from Excel!')
+                success_messages.append(f'Created {imported_count} new products')
+            if updated_count > 0:
+                success_messages.append(f'Updated {updated_count} existing products')
+            
+            if success_messages:
+                messages.success(request, f'Import completed! {", ".join(success_messages)}.')
             
             if error_count > 0:
                 error_message = f'{error_count} errors occurred during import:'
@@ -2335,7 +2541,7 @@ def import_products_excel(request):
                     error_message += '\n' + '\n'.join(errors[:10]) + f'\n... and {len(errors) - 10} more errors'
                 messages.error(request, error_message)
             
-            if imported_count == 0 and error_count == 0:
+            if imported_count == 0 and updated_count == 0 and error_count == 0:
                 messages.warning(request, 'No data found in the Excel file.')
                 
         finally:
@@ -2368,7 +2574,8 @@ def download_template_csv(request):
         'price',
         'available_in_stock',
         'is_available',
-        'preparation_time'
+        'preparation_time',
+        'station'
     ])
     
     # Add sample data
@@ -2380,7 +2587,8 @@ def download_template_csv(request):
         '12.99',
         '50',
         'true',
-        '20'
+        '20',
+        'kitchen'
     ])
     writer.writerow([
         'Sample Burger',
@@ -2390,7 +2598,19 @@ def download_template_csv(request):
         '8.99',
         '30',
         'true',
-        '15'
+        '15',
+        'kitchen'
+    ])
+    writer.writerow([
+        'Sample Cocktail',
+        'Refreshing tropical cocktail',
+        'Beverages',
+        'Alcoholic',
+        '7.50',
+        '20',
+        'true',
+        '5',
+        'bar'
     ])
     
     return response
@@ -2421,7 +2641,8 @@ def download_template_excel(request):
         'price',
         'available_in_stock',
         'is_available',
-        'preparation_time'
+        'preparation_time',
+        'station'
     ]
     
     for col, header in enumerate(headers, 1):
@@ -2429,8 +2650,9 @@ def download_template_excel(request):
     
     # Sample data
     sample_data = [
-        ['Sample Pizza', 'Delicious cheese pizza with fresh toppings', 'Main Dishes', 'Pizza', 12.99, 50, True, 20],
-        ['Sample Burger', 'Juicy beef burger with lettuce and tomato', 'Main Dishes', 'Burgers', 8.99, 30, True, 15],
+        ['Sample Pizza', 'Delicious cheese pizza with fresh toppings', 'Main Dishes', 'Pizza', 12.99, 50, True, 20, 'kitchen'],
+        ['Sample Burger', 'Juicy beef burger with lettuce and tomato', 'Main Dishes', 'Burgers', 8.99, 30, True, 15, 'kitchen'],
+        ['Sample Cocktail', 'Refreshing tropical cocktail', 'Beverages', 'Alcoholic', 7.50, 20, True, 5, 'bar'],
     ]
     
     for row_idx, row_data in enumerate(sample_data, 2):
@@ -2529,3 +2751,178 @@ def bulk_delete_products(request):
     except Exception as e:
         print(f"Error in bulk delete: {str(e)}")
         return JsonResponse({'success': False, 'error': 'An error occurred while deleting products.'})
+
+
+@login_required
+def export_products_csv(request):
+    """Export all products to CSV"""
+    if not (request.user.is_administrator() or request.user.is_owner()):
+        messages.error(request, "Access denied. Administrator or Owner privileges required.")
+        return redirect('admin_panel:manage_products')
+    
+    # Get user's products
+    if request.user.is_administrator():
+        products = Product.objects.all()
+    else:
+        products = Product.objects.filter(main_category__owner=request.user)
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="products_export.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'name', 'description', 'main_category', 'sub_category', 
+        'price', 'available_in_stock', 'is_available', 
+        'preparation_time', 'station'
+    ])
+    
+    for product in products:
+        writer.writerow([
+            product.name,
+            product.description,
+            product.main_category.name,
+            product.sub_category.name if product.sub_category else '',
+            product.price,
+            product.available_in_stock,
+            product.is_available,
+            product.preparation_time,
+            product.station
+        ])
+    
+    return response
+
+
+@login_required  
+def export_products_excel(request):
+    """Export all products to Excel"""
+    if not (request.user.is_administrator() or request.user.is_owner()):
+        messages.error(request, "Access denied. Administrator or Owner privileges required.")
+        return redirect('admin_panel:manage_products')
+    
+    try:
+        import openpyxl
+    except ImportError:
+        messages.error(request, 'Excel export is not available. Please contact administrator.')
+        return redirect('admin_panel:manage_products')
+    
+    # Get user's products
+    if request.user.is_administrator():
+        products = Product.objects.all()
+    else:
+        products = Product.objects.filter(main_category__owner=request.user)
+    
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Products Export"
+    
+    # Headers
+    headers = [
+        'Name', 'Description', 'Main Category', 'Sub Category',
+        'Price', 'Available Stock', 'Available', 'Preparation Time', 'Station'
+    ]
+    
+    for col, header in enumerate(headers, 1):
+        worksheet.cell(row=1, column=col, value=header)
+    
+    # Data
+    for row, product in enumerate(products, 2):
+        worksheet.cell(row=row, column=1, value=product.name)
+        worksheet.cell(row=row, column=2, value=product.description)
+        worksheet.cell(row=row, column=3, value=product.main_category.name)
+        worksheet.cell(row=row, column=4, value=product.sub_category.name if product.sub_category else '')
+        worksheet.cell(row=row, column=5, value=float(product.price))
+        worksheet.cell(row=row, column=6, value=product.available_in_stock)
+        worksheet.cell(row=row, column=7, value=product.is_available)
+        worksheet.cell(row=row, column=8, value=product.preparation_time)
+        worksheet.cell(row=row, column=9, value=product.station)
+    
+    # Save to BytesIO
+    excel_io = io.BytesIO()
+    workbook.save(excel_io)
+    excel_io.seek(0)
+    
+    response = HttpResponse(
+        excel_io.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="products_export.xlsx"'
+    return response
+
+
+@login_required
+def export_products_pdf(request):
+    """Export all products to PDF"""
+    if not (request.user.is_administrator() or request.user.is_owner()):
+        messages.error(request, "Access denied. Administrator or Owner privileges required.")
+        return redirect('admin_panel:manage_products')
+    
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    except ImportError:
+        messages.error(request, 'PDF export is not available. Please contact administrator.')
+        return redirect('admin_panel:manage_products')
+    
+    # Get user's products
+    if request.user.is_administrator():
+        products = Product.objects.all()
+        restaurant_name = "All Restaurants"
+    else:
+        products = Product.objects.filter(main_category__owner=request.user)
+        restaurant_name = request.user.restaurant_name or "Restaurant"
+    
+    # Create response
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="products_export.pdf"'
+    
+    # Create PDF
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    styles = getSampleStyleSheet()
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        alignment=1  # Center
+    )
+    
+    elements = []
+    elements.append(Paragraph(f"{restaurant_name} - Products List", title_style))
+    elements.append(Spacer(1, 20))
+    
+    # Table data
+    data = [['Name', 'Category', 'Price', 'Stock', 'Station', 'Available']]
+    
+    for product in products:
+        data.append([
+            product.name[:30],  # Truncate long names
+            product.main_category.name[:20],
+            f"${product.price}",
+            str(product.available_in_stock),
+            product.station.title(),
+            "Yes" if product.is_available else "No"
+        ])
+    
+    # Create table
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(table)
+    doc.build(elements)
+    
+    return response

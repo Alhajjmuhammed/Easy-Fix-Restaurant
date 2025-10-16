@@ -77,9 +77,14 @@
     <!-- Main Categories Tab -->
     <div class="tab-pane fade show active" id="main-categories" role="tabpanel" aria-labelledby="main-categories-tab">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMainCategoryModal">
-                <i class="fas fa-plus me-2"></i>Add Main Category
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMainCategoryModal">
+                    <i class="fas fa-plus me-2"></i>Add Main Category
+                </button>
+                <button class="btn btn-danger" id="bulkDeleteMainCategoriesBtn" style="display: none;">
+                    <i class="fas fa-trash me-2"></i>Delete Selected (<span id="selectedMainCategoriesCount">0</span>)
+                </button>
+            </div>
             <div class="input-group" style="width: 300px;">
                 <span class="input-group-text"><i class="fas fa-search"></i></span>
                 <input type="text" class="form-control" placeholder="Search main categories..." id="mainCategorySearchInput">
@@ -90,6 +95,9 @@
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAllMainCategories">
+                        </th>
                         <th>Category</th>
                         <th>Description</th>
                         <th>Status</th>
@@ -100,6 +108,9 @@
                 <tbody id="mainCategoriesTableBody">
                     {% for category in main_categories %}
                     <tr data-category-id="{{ category.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input category-checkbox" value="{{ category.id }}">
+                        </td>
                         <td>
                             <div class="d-flex align-items-center">
                                 <div class="category-icon me-3">
@@ -176,9 +187,14 @@
     <!-- Subcategories Tab -->
     <div class="tab-pane fade" id="subcategories" role="tabpanel" aria-labelledby="subcategories-tab">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubCategoryModal">
-                <i class="fas fa-plus me-2"></i>Add Subcategory
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubCategoryModal">
+                    <i class="fas fa-plus me-2"></i>Add Subcategory
+                </button>
+                <button class="btn btn-danger" id="bulkDeleteSubcategoriesBtn" style="display: none;">
+                    <i class="fas fa-trash me-2"></i>Delete Selected (<span id="selectedSubcategoriesCount">0</span>)
+                </button>
+            </div>
             <div class="input-group" style="width: 300px;">
                 <span class="input-group-text"><i class="fas fa-search"></i></span>
                 <input type="text" class="form-control" placeholder="Search subcategories..." id="subcategorySearchInput">
@@ -189,6 +205,9 @@
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAllSubcategories">
+                        </th>
                         <th>Subcategory</th>
                         <th>Main Category</th>
                         <th>Description</th>
@@ -200,6 +219,9 @@
                 <tbody id="subcategoriesTableBody">
                     {% for subcategory in subcategories %}
                     <tr data-subcategory-id="{{ subcategory.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input subcategory-checkbox" value="{{ subcategory.id }}">
+                        </td>
                         <td>
                             <div class="d-flex align-items-center">
                                 <div class="category-icon me-3" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
@@ -903,6 +925,204 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+
+    // Main Categories Bulk Delete Functionality
+    const selectAllMainCategories = document.getElementById('selectAllMainCategories');
+    const categoryCheckboxes = document.querySelectorAll('.category-checkbox');
+    const bulkDeleteMainCategoriesBtn = document.getElementById('bulkDeleteMainCategoriesBtn');
+    const selectedMainCategoriesCount = document.getElementById('selectedMainCategoriesCount');
+
+    function updateMainCategoriesBulkDeleteButton() {
+        const checkedBoxes = document.querySelectorAll('.category-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedMainCategoriesCount.textContent = count;
+        
+        if (count > 0) {
+            bulkDeleteMainCategoriesBtn.style.display = 'inline-block';
+        } else {
+            bulkDeleteMainCategoriesBtn.style.display = 'none';
+        }
+    }
+
+    // Select all main categories checkbox
+    if (selectAllMainCategories) {
+        selectAllMainCategories.addEventListener('change', function() {
+            const isChecked = this.checked;
+            categoryCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateMainCategoriesBulkDeleteButton();
+        });
+    }
+
+    // Individual category checkbox handlers
+    categoryCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateMainCategoriesBulkDeleteButton();
+            
+            // Update select all checkbox state
+            const allChecked = Array.from(categoryCheckboxes).every(cb => cb.checked);
+            const someChecked = Array.from(categoryCheckboxes).some(cb => cb.checked);
+            
+            if (selectAllMainCategories) {
+                selectAllMainCategories.checked = allChecked;
+                selectAllMainCategories.indeterminate = someChecked && !allChecked;
+            }
+        });
+    });
+
+    // Bulk delete main categories button handler
+    if (bulkDeleteMainCategoriesBtn) {
+        bulkDeleteMainCategoriesBtn.addEventListener('click', function() {
+            executeOnce(() => {
+                const checkedBoxes = document.querySelectorAll('.category-checkbox:checked');
+                const categoryIds = Array.from(checkedBoxes).map(cb => cb.value);
+                
+                if (categoryIds.length === 0) {
+                    showAlert('No categories selected', 'warning');
+                    return;
+                }
+
+                const confirmMessage = `Are you sure you want to delete ${categoryIds.length} main categor${categoryIds.length === 1 ? 'y' : 'ies'}?\n\nWARNING: This will also delete ALL subcategories and products in these categories.\nThis action cannot be undone.`;
+                
+                if (confirm(confirmMessage)) {
+                    fetch('/admin-panel/categories/bulk-delete-main/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCSRFToken(),
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            category_ids: categoryIds
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showAlert(data.message, 'success');
+                            // Remove deleted rows from table
+                            categoryIds.forEach(id => {
+                                const row = document.querySelector(`[data-category-id="${id}"]`);
+                                if (row) {
+                                    row.remove();
+                                }
+                            });
+                            updateMainCategoriesBulkDeleteButton();
+                            if (selectAllMainCategories) {
+                                selectAllMainCategories.checked = false;
+                                selectAllMainCategories.indeterminate = false;
+                            }
+                        } else {
+                            showAlert(data.message || 'Failed to delete categories', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showAlert('Failed to delete categories', 'danger');
+                    });
+                }
+            });
+        });
+    }
+
+    // Subcategories Bulk Delete Functionality
+    const selectAllSubcategories = document.getElementById('selectAllSubcategories');
+    const subcategoryCheckboxes = document.querySelectorAll('.subcategory-checkbox');
+    const bulkDeleteSubcategoriesBtn = document.getElementById('bulkDeleteSubcategoriesBtn');
+    const selectedSubcategoriesCount = document.getElementById('selectedSubcategoriesCount');
+
+    function updateSubcategoriesBulkDeleteButton() {
+        const checkedBoxes = document.querySelectorAll('.subcategory-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedSubcategoriesCount.textContent = count;
+        
+        if (count > 0) {
+            bulkDeleteSubcategoriesBtn.style.display = 'inline-block';
+        } else {
+            bulkDeleteSubcategoriesBtn.style.display = 'none';
+        }
+    }
+
+    // Select all subcategories checkbox
+    if (selectAllSubcategories) {
+        selectAllSubcategories.addEventListener('change', function() {
+            const isChecked = this.checked;
+            subcategoryCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateSubcategoriesBulkDeleteButton();
+        });
+    }
+
+    // Individual subcategory checkbox handlers
+    subcategoryCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSubcategoriesBulkDeleteButton();
+            
+            // Update select all checkbox state
+            const allChecked = Array.from(subcategoryCheckboxes).every(cb => cb.checked);
+            const someChecked = Array.from(subcategoryCheckboxes).some(cb => cb.checked);
+            
+            if (selectAllSubcategories) {
+                selectAllSubcategories.checked = allChecked;
+                selectAllSubcategories.indeterminate = someChecked && !allChecked;
+            }
+        });
+    });
+
+    // Bulk delete subcategories button handler
+    if (bulkDeleteSubcategoriesBtn) {
+        bulkDeleteSubcategoriesBtn.addEventListener('click', function() {
+            executeOnce(() => {
+                const checkedBoxes = document.querySelectorAll('.subcategory-checkbox:checked');
+                const subcategoryIds = Array.from(checkedBoxes).map(cb => cb.value);
+                
+                if (subcategoryIds.length === 0) {
+                    showAlert('No subcategories selected', 'warning');
+                    return;
+                }
+
+                const confirmMessage = `Are you sure you want to delete ${subcategoryIds.length} subcategor${subcategoryIds.length === 1 ? 'y' : 'ies'}?\n\nWARNING: This will also delete ALL products in these subcategories.\nThis action cannot be undone.`;
+                
+                if (confirm(confirmMessage)) {
+                    fetch('/admin-panel/categories/bulk-delete-sub/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCSRFToken(),
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            subcategory_ids: subcategoryIds
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showAlert(data.message, 'success');
+                            // Remove deleted rows from table
+                            subcategoryIds.forEach(id => {
+                                const row = document.querySelector(`[data-subcategory-id="${id}"]`);
+                                if (row) {
+                                    row.remove();
+                                }
+                            });
+                            updateSubcategoriesBulkDeleteButton();
+                            if (selectAllSubcategories) {
+                                selectAllSubcategories.checked = false;
+                                selectAllSubcategories.indeterminate = false;
+                            }
+                        } else {
+                            showAlert(data.message || 'Failed to delete subcategories', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showAlert('Failed to delete subcategories', 'danger');
+                    });
+                }
+            });
+        });
+    }
 });
 </script>
 {% endblock %}

@@ -144,6 +144,109 @@
     </div>
 </div>
 
+{% if user.is_owner %}
+<!-- Restaurant Settings Card -->
+<div class="row">
+    <div class="col-lg-8 col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-store me-2"></i>
+                    <h5 class="mb-0">Restaurant Settings</h5>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="post" id="restaurantForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_restaurant">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="restaurant_name" class="form-label">Restaurant Name</label>
+                                <input type="text" class="form-control" id="restaurant_name" name="restaurant_name" 
+                                       value="{{ user.restaurant_name|default:'' }}" placeholder="Enter restaurant name">
+                            </div>
+                            <div class="mb-3">
+                                <label for="restaurant_qr_code" class="form-label">QR Code</label>
+                                <input type="text" class="form-control" id="restaurant_qr_code" 
+                                       value="{{ user.restaurant_qr_code|default:'Not generated' }}" readonly>
+                                <div class="form-text">QR Code is automatically generated</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tax_rate_percentage" class="form-label">Tax Rate (%)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="tax_rate_percentage" name="tax_rate_percentage" 
+                                           step="0.01" min="0" max="99.99"
+                                           value="{{ user.get_tax_rate_percentage|floatformat:2 }}" 
+                                           placeholder="Enter tax rate">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">Enter tax rate as percentage (e.g., 8.00 for 8%)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="restaurant_description" class="form-label">Restaurant Description</label>
+                        <textarea class="form-control" id="restaurant_description" name="restaurant_description" 
+                                  rows="3" placeholder="Describe your restaurant...">{{ user.restaurant_description|default:'' }}</textarea>
+                    </div>
+                    
+                    <div class="d-flex gap-2 mb-3">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-1"></i>Update Restaurant Info
+                        </button>
+                        <button type="reset" class="btn btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i>Reset
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Tax Information:</strong> The tax rate you set here will be applied to all new orders. Current orders are not affected.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tax Rate Summary -->
+    <div class="col-lg-4 col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center">
+                <i class="fas fa-calculator me-2"></i>
+                <h5 class="mb-0">Tax Preview</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <div class="display-4 text-primary">{{ user.get_tax_rate_percentage|floatformat:2 }}%</div>
+                    <p class="text-muted mb-3">Current Tax Rate</p>
+                </div>
+                
+                <div class="border rounded p-3 bg-light" id="taxPreviewExample">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Example Order:</span>
+                        <span>$100.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Tax (<span class="tax-rate-display">{{ user.get_tax_rate_percentage|floatformat:2 }}</span>%):</span>
+                        <span>$<span class="tax-amount-display">{{ user.get_tax_rate_percentage|floatformat:2 }}</span></span>
+                    </div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between fw-bold">
+                        <span>Total:</span>
+                        <span>$<span class="total-amount-display">{{ user.get_tax_rate_percentage|add:100|floatformat:2 }}</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Password Change Card -->
 <div class="row">
     <div class="col-lg-8 col-md-12">
@@ -257,9 +360,18 @@
 }
 
 #profileForm .form-control:focus,
-#passwordForm .form-control:focus {
+#passwordForm .form-control:focus,
+#restaurantForm .form-control:focus {
     border-color: var(--accent-color);
     box-shadow: 0 0 0 0.2rem rgba(52, 144, 220, 0.25);
+}
+
+.form-control.is-valid {
+    border-color: #198754;
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
 }
 </style>
 
@@ -296,6 +408,97 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
     });
+    
+    // Restaurant form validation
+    const restaurantForm = document.getElementById('restaurantForm');
+    if (restaurantForm) {
+        restaurantForm.addEventListener('submit', function(e) {
+            const restaurantName = document.getElementById('restaurant_name').value.trim();
+            const taxRateInput = document.getElementById('tax_rate_percentage');
+            const taxRate = parseFloat(taxRateInput.value) || 0;
+            
+            // Validate restaurant name
+            if (!restaurantName) {
+                e.preventDefault();
+                alert('Restaurant name is required!');
+                return false;
+            }
+            
+            // Validate tax rate
+            if (taxRate < 0 || taxRate > 99.99) {
+                e.preventDefault();
+                alert('Tax rate must be between 0% and 99.99%!');
+                taxRateInput.focus();
+                return false;
+            }
+            
+            if (confirm('Are you sure you want to update restaurant information and tax rate?')) {
+                return true;
+            } else {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // Real-time tax rate validation
+        const taxRateInput = document.getElementById('tax_rate_percentage');
+        if (taxRateInput) {
+            taxRateInput.addEventListener('input', function() {
+                const taxRate = parseFloat(this.value) || 0;
+                
+                // Visual feedback for invalid values
+                if (taxRate < 0 || taxRate > 99.99) {
+                    this.classList.add('is-invalid');
+                    this.classList.remove('is-valid');
+                } else {
+                    this.classList.add('is-valid');
+                    this.classList.remove('is-invalid');
+                }
+            });
+        }
+    }
 });
+
+{% if user.is_owner %}
+// Initialize tax preview calculations
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate and display initial tax preview
+    const currentTaxRate = {{ user.get_tax_rate_percentage|floatformat:2 }};
+    updateStaticTaxPreview(currentTaxRate);
+    
+    // Update preview when tax rate input changes
+    const taxRateInput = document.getElementById('tax_rate_percentage');
+    if (taxRateInput) {
+        taxRateInput.addEventListener('input', function() {
+            const newTaxRate = parseFloat(this.value) || 0;
+            updateStaticTaxPreview(newTaxRate);
+        });
+    }
+});
+
+// Update the static tax preview on the page
+function updateStaticTaxPreview(taxRate) {
+    const taxAmountElement = document.querySelector('.tax-amount-display');
+    const totalAmountElement = document.querySelector('.total-amount-display');
+    const taxRateElement = document.querySelector('.tax-rate-display');
+    const mainTaxDisplay = document.querySelector('.display-4.text-primary');
+    
+    // Update main tax rate display
+    if (mainTaxDisplay) {
+        mainTaxDisplay.textContent = taxRate.toFixed(2) + '%';
+    }
+    
+    // Update preview calculation
+    if (taxAmountElement && totalAmountElement && taxRateElement) {
+        const subtotal = 100.00;
+        const taxAmount = subtotal * (taxRate / 100);
+        const total = subtotal + taxAmount;
+        
+        taxRateElement.textContent = taxRate.toFixed(2);
+        taxAmountElement.textContent = taxAmount.toFixed(2);
+        totalAmountElement.textContent = total.toFixed(2);
+    }
+}
+{% endif %}
 </script>
 {% endblock %}

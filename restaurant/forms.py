@@ -6,7 +6,7 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = ['name', 'description', 'main_category', 'sub_category', 'price', 
-                 'available_in_stock', 'is_available', 'preparation_time']
+                 'available_in_stock', 'is_available', 'preparation_time', 'station']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Product name'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Product description'}),
@@ -16,6 +16,7 @@ class ProductForm(forms.ModelForm):
             'available_in_stock': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'is_available': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'preparation_time': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'station': forms.Select(attrs={'class': 'form-select'}),
         }
     
     def __init__(self, *args, **kwargs):

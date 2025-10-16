@@ -35,9 +35,20 @@ class UserRegistrationForm(forms.ModelForm):
         })
     )
     
+    role = forms.ModelChoiceField(
+        queryset=None,
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        help_text="Select the role for this user."
+    )
+
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'phone_number', 'address']
+        fields = ['username', 'email', 'first_name', 'last_name', 'phone_number', 'address', 'role']
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import Role
+        self.fields['role'].queryset = Role.objects.all()
         widgets = {
             'username': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -128,10 +139,21 @@ class OwnerRegistrationForm(forms.ModelForm):
         help_text="Brief description of your restaurant (optional)"
     )
 
+    role = forms.ModelChoiceField(
+        queryset=None,
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        help_text="Select the role for this user."
+    )
+
     class Meta:
         model = User
         fields = ['username', 'email', 'first_name', 'last_name', 'phone_number', 'address', 
-                 'restaurant_name', 'restaurant_description']
+                 'restaurant_name', 'restaurant_description', 'role']
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import Role
+        self.fields['role'].queryset = Role.objects.all()
         widgets = {
             'username': forms.TextInput(attrs={
                 'class': 'form-control',

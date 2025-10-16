@@ -9,6 +9,7 @@
                     <th>Table</th>
                     <th>Time</th>
                     <th>Customer</th>
+                    <th>Type</th>
                     <th>Total</th>
                     <th>Notes</th>
                     <th>Actions</th>
@@ -29,6 +30,23 @@
                     </td>
                     <td style="font-size: 0.8rem;">
                         {{ order.ordered_by.get_full_name|default:order.ordered_by.username }}
+                    </td>
+                    <td>
+                        {% comment %} Determine order type based on products {% endcomment %}
+                        {% regroup order.order_items.all by product.station as station_groups %}
+                        {% if station_groups|length > 1 %}
+                            <span class="badge bg-info" style="font-size: 0.7rem;">Mixed</span>
+                        {% else %}
+                            {% for station_group in station_groups %}
+                                {% if station_group.grouper == 'kitchen' %}
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">Kitchen</span>
+                                {% elif station_group.grouper == 'bar' %}
+                                    <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Bar</span>
+                                {% else %}
+                                    <span class="badge bg-secondary" style="font-size: 0.7rem;">{{ station_group.grouper|title }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
                     </td>
                     <td>
                         <strong style="font-size: 0.8rem;">${{ order.total_amount|floatformat:2 }}</strong>
@@ -73,9 +91,10 @@
                             </button>
                             {% endif %}
                             
-                            <button type="button" class="btn btn-sm btn-outline-secondary edit-order-btn" 
-                                    data-order-id="{{ order.id }}" title="Edit Order">
-                                <i class="fas fa-edit"></i>
+                            <!-- Delete Button - Available for all orders -->
+                            <button type="button" class="btn btn-sm btn-outline-danger delete-order-btn" 
+                                    data-order-id="{{ order.id }}" data-order-number="{{ order.order_number }}" title="Delete Order">
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>

@@ -292,7 +292,7 @@
                         <div class="item-name">
                             {{ item.quantity }}x {{ item.product.name }}
                             {% if item.product.has_active_promotion %}
-                            <br><small>  (Happy Hour {{ item.product.happy_hour_discount }}% off)</small>
+                            <br><small>  (Happy Hour {{ item.product.get_active_promotion.discount_percentage|floatformat:0 }}% off)</small>
                             {% endif %}
                         </div>
                         <div class="item-price">${{ item.get_total_price|floatformat:2 }}</div>

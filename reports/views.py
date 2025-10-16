@@ -22,21 +22,26 @@ from io import BytesIO
 
 @login_required
 def dashboard(request):
-    """Simple sales reports dashboard"""
+    """Advanced sales reports dashboard with kitchen/bar filtering"""
     
     # Get owner filter for multi-tenant support
     owner = get_owner_filter(request.user)
     
     # Get filter parameters
     payment_status = request.GET.get('payment_status', 'all')
-    period = request.GET.get('period', 'all')
+    period = request.GET.get('period', 'today')  # Default to 'today' instead of 'all'
     category_id = request.GET.get('category_id', 'all')
     subcategory_id = request.GET.get('subcategory_id', 'all')
+    station_filter = request.GET.get('station_filter', 'all')  # NEW: Kitchen/Bar filtering
+    
+    # Get date filters (only use if no period is being used)
     from_date = request.GET.get('from_date')
     to_date = request.GET.get('to_date')
     
-    # Base queryset - filter by owner through table_info
-    orders = Order.objects.filter(table_info__owner=owner)
+    # Base queryset - filter by owner through table_info with performance optimization
+    orders = Order.objects.select_related('table_info', 'ordered_by', 'confirmed_by')\
+        .prefetch_related('order_items__product__main_category', 'order_items__product__sub_category')\
+        .filter(table_info__owner=owner)
     
     # Apply period filter
     today = timezone.now().date()
@@ -69,17 +74,46 @@ def dashboard(request):
     elif payment_status == 'partial':
         orders = orders.filter(payment_status='partial')
     
-    # Apply date filters (these override period if specified)
-    if from_date:
-        orders = orders.filter(created_at__date__gte=from_date)
-    if to_date:
-        orders = orders.filter(created_at__date__lte=to_date)
+    # Apply custom date filters (only when period allows custom dates)
+    if (period == 'all' or period == 'custom') and (from_date or to_date):
+        if from_date:
+            orders = orders.filter(created_at__date__gte=from_date)
+        if to_date:
+            orders = orders.filter(created_at__date__lte=to_date)
     
-    # Calculate summary data
+    # Apply station filtering (Kitchen/Bar/All)
+    if station_filter == 'kitchen':
+        # Filter orders that have kitchen items
+        orders = orders.filter(order_items__product__station='kitchen').distinct()
+    elif station_filter == 'bar':
+        # Filter orders that have bar items
+        orders = orders.filter(order_items__product__station='bar').distinct()
+    # 'all' means no station filter
+    
+    # Helper functions for station detection
+    # Helper functions for station analysis
+    def has_kitchen_items(order):
+        return any(item.product.station == 'kitchen' for item in order.order_items.all())
+    
+    def has_bar_items(order):
+        return any(item.product.station == 'bar' for item in order.order_items.all())
+
+    # Calculate summary data with optimized queries
     total_orders = orders.count()
     total_revenue = orders.aggregate(total=Sum('total_amount'))['total'] or 0
     total_items = OrderItem.objects.filter(order__in=orders).aggregate(total=Sum('quantity'))['total'] or 0
     avg_order_value = (total_revenue / total_orders) if total_orders > 0 else 0
+    
+    # Calculate station-specific metrics
+    kitchen_orders_count = len([o for o in orders if has_kitchen_items(o)]) if station_filter == 'all' else (total_orders if station_filter == 'kitchen' else 0)
+    bar_orders_count = len([o for o in orders if has_bar_items(o)]) if station_filter == 'all' else (total_orders if station_filter == 'bar' else 0)
+    mixed_orders_count = len([o for o in orders if has_kitchen_items(o) and has_bar_items(o)]) if station_filter == 'all' else 0
+    
+    # Top selling products analysis
+    top_products = OrderItem.objects.filter(order__in=orders)\
+        .values('product__name', 'product__station')\
+        .annotate(total_quantity=Sum('quantity'), total_revenue=Sum('unit_price'))\
+        .order_by('-total_quantity')[:5]
     
     # Get orders for table with pagination
     orders_list = orders.order_by('-created_at')
@@ -97,6 +131,9 @@ def dashboard(request):
     if category_id != 'all':
         subcategories = subcategories.filter(main_category_id=category_id)
     
+    # Today's date for template defaults
+    today_str = timezone.now().date().strftime('%Y-%m-%d')
+    
     context = {
         'total_orders': total_orders,
         'total_revenue': total_revenue,
@@ -109,27 +146,40 @@ def dashboard(request):
         'subcategories': subcategories,
         'selected_category': category_id,
         'selected_subcategory': subcategory_id,
+        'station_filter': station_filter,  # NEW: Station filter value
+        'kitchen_orders_count': kitchen_orders_count,
+        'bar_orders_count': bar_orders_count,
+        'mixed_orders_count': mixed_orders_count,
+        'top_products': top_products,
+        'from_date': from_date,  # Default date values for template
+        'to_date': to_date,
+        'today': today_str,  # Today's date for reference
     }
     
     return render(request, 'reports/dashboard.html', context)
 
 @login_required
 def export_csv(request):
-    """Export filtered data to CSV"""
+    """Export filtered data to CSV with station filtering"""
     
     # Get owner filter for multi-tenant support
     owner = get_owner_filter(request.user)
     
     # Get same filters as dashboard
     payment_status = request.GET.get('payment_status', 'all')
-    period = request.GET.get('period', 'all')
+    period = request.GET.get('period', 'today')  # Default to 'today' same as dashboard
     category_id = request.GET.get('category_id', 'all')
     subcategory_id = request.GET.get('subcategory_id', 'all')
+    station_filter = request.GET.get('station_filter', 'all')  # NEW: Station filtering
+    
+    # Get date filters (only use if custom period)
     from_date = request.GET.get('from_date')
     to_date = request.GET.get('to_date')
     
-    # Base queryset - filter by owner through table_info
-    orders = Order.objects.filter(table_info__owner=owner)
+    # Base queryset - filter by owner through table_info with optimization
+    orders = Order.objects.select_related('table_info', 'ordered_by', 'confirmed_by')\
+        .prefetch_related('order_items__product__main_category', 'order_items__product__sub_category')\
+        .filter(table_info__owner=owner)
     
     # Apply period filter
     today = timezone.now().date()
@@ -195,6 +245,10 @@ def export_csv(request):
     else:
         period_desc = "All Time"
     
+    # Add station filter to period description
+    if station_filter != 'all':
+        period_desc += f" (Station: {station_filter.title()})"
+    
     # Create CSV response
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="sales_report_{payment_status}_{period}_{datetime.now().strftime("%Y%m%d")}.csv"'
@@ -206,6 +260,7 @@ def export_csv(request):
     writer.writerow(['Generated on:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
     writer.writerow(['Period:', period_desc])
     writer.writerow(['Payment Status Filter:', payment_status.title()])
+    writer.writerow(['Station Filter:', station_filter.title()])
     if category_id != 'all':
         try:
             category_name = MainCategory.objects.get(id=category_id, owner=owner).name
@@ -231,12 +286,13 @@ def export_csv(request):
     
     # Write detailed data header
     writer.writerow(['DETAILED SALES DATA'])
-    writer.writerow(['Order ID', 'Customer', 'Date', 'Table', 'Items', 'Categories', 'Sub Categories', 'Total Amount', 'Payment Status', 'Order Status', 'Cashier'])
+    writer.writerow(['Order ID', 'Customer', 'Date', 'Table', 'Items', 'Categories', 'Sub Categories', 'Stations', 'Total Amount', 'Payment Status', 'Order Status', 'Cashier'])
     
     for order in orders.order_by('-created_at'):
         items_list = ', '.join([f"{item.product.name} x{item.quantity}" for item in order.order_items.all()])
         categories_list = ', '.join([item.product.main_category.name for item in order.order_items.all()])
         subcategories_list = ', '.join([item.product.sub_category.name if item.product.sub_category else '-' for item in order.order_items.all()])
+        stations_list = ', '.join([item.product.station.title() for item in order.order_items.all()])
         table_number = order.table_info.tbl_no if order.table_info else '-'
         customer_name = f"{order.ordered_by.first_name} {order.ordered_by.last_name}" if order.ordered_by else 'Walk-in Customer'
         cashier_name = f"{order.confirmed_by.first_name} {order.confirmed_by.last_name}" if order.confirmed_by else f"{order.ordered_by.first_name} {order.ordered_by.last_name} (Self)" if order.ordered_by else 'System'
@@ -249,6 +305,7 @@ def export_csv(request):
             items_list,
             categories_list,
             subcategories_list,
+            stations_list,
             order.total_amount,
             order.payment_status,
             order.status,
@@ -259,21 +316,26 @@ def export_csv(request):
 
 @login_required
 def export_pdf(request):
-    """Export filtered data to PDF"""
+    """Export filtered data to PDF with station filtering"""
     
     # Get owner filter for multi-tenant support
     owner = get_owner_filter(request.user)
     
     # Get same filters as dashboard
     payment_status = request.GET.get('payment_status', 'all')
-    period = request.GET.get('period', 'all')
+    period = request.GET.get('period', 'today')  # Default to 'today' same as dashboard
     category_id = request.GET.get('category_id', 'all')
     subcategory_id = request.GET.get('subcategory_id', 'all')
+    station_filter = request.GET.get('station_filter', 'all')  # NEW: Station filtering
+    
+    # Get date filters (only use if custom period)
     from_date = request.GET.get('from_date')
     to_date = request.GET.get('to_date')
     
-    # Base queryset - filter by owner through table_info
-    orders = Order.objects.filter(table_info__owner=owner)
+    # Base queryset - filter by owner through table_info with optimization
+    orders = Order.objects.select_related('table_info', 'ordered_by', 'confirmed_by')\
+        .prefetch_related('order_items__product__main_category', 'order_items__product__sub_category')\
+        .filter(table_info__owner=owner)
     
     # Apply period filter
     today = timezone.now().date()
@@ -338,6 +400,10 @@ def export_pdf(request):
         period_desc = f"This Year: {year_start} to {today}"
     else:
         period_desc = "All Time"
+    
+    # Add station filter to period description for PDF
+    if station_filter != 'all':
+        period_desc += f" (Station: {station_filter.title()})"
     
     # Create PDF response
     response = HttpResponse(content_type='application/pdf')
@@ -379,6 +445,7 @@ def export_pdf(request):
         ['Generated on:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
         ['Period:', period_desc],
         ['Payment Status Filter:', payment_status.title()],
+        ['Station Filter:', station_filter.title()],
     ]
     
     if category_id != 'all':

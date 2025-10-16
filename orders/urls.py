@@ -4,6 +4,8 @@ from . import views
 app_name = 'orders'
 
 urlpatterns = [
+    # Bar management
+    path('bar/', views.bar_dashboard, name='bar_dashboard'),
     path('', views.order_list, name='order_list'),
     path('create/', views.create_order, name='create_order'),
     
@@ -33,10 +35,22 @@ urlpatterns = [
     path('update-status/<int:order_id>/', views.update_order_status, name='update_order_status'),
     path('cancel-order/<int:order_id>/', views.cancel_order, name='cancel_order'),
     
+    # KOT (Kitchen Order Ticket) printing
+    path('kot/<int:order_id>/', views.print_kot, name='print_kot'),
+    path('kot/reprint/<int:order_id>/', views.reprint_kot, name='reprint_kot'),
+    
+    # BOT (Bar Order Ticket) printing
+    path('bot/<int:order_id>/', views.print_bot, name='print_bot'),
+    path('bot/reprint/<int:order_id>/', views.reprint_bot, name='reprint_bot'),
+    
     # Customer care management
     path('customer-care/', views.customer_care_dashboard, name='customer_care_dashboard'),
     path('customer-care/payments/', views.customer_care_payments, name='customer_care_payments'),
     path('customer-care/receipt/<int:payment_id>/', views.customer_care_receipt, name='customer_care_receipt'),
     path('customer-care/reprint/<int:payment_id>/', views.customer_care_reprint_receipt, name='customer_care_reprint_receipt'),
     path('customer-care/receipts/', views.customer_care_receipt_management, name='customer_care_receipt_management'),
+    
+    # Bill Request URLs
+    path('request-bill/<int:table_id>/', views.request_bill, name='request_bill'),
+    path('mark-bill-completed/<int:request_id>/', views.mark_bill_request_completed, name='mark_bill_completed'),
 ]

@@ -21,6 +21,8 @@ urlpatterns = [
     path('categories/edit-sub/<int:subcategory_id>/', views.edit_subcategory, name='edit_subcategory'),
     path('categories/delete-sub/<int:subcategory_id>/', views.delete_subcategory, name='delete_subcategory'),
     path('categories/toggle-sub/<int:subcategory_id>/', views.toggle_subcategory, name='toggle_subcategory'),
+    path('categories/bulk-delete-main/', views.bulk_delete_main_categories, name='bulk_delete_main_categories'),
+    path('categories/bulk-delete-sub/', views.bulk_delete_subcategories, name='bulk_delete_subcategories'),
     
     # User Management
     path('users/add/', views.add_user, name='add_user'),
@@ -64,6 +66,9 @@ urlpatterns = [
     # Product Import/Export
     path('products/import-csv/', views.import_products_csv, name='import_products_csv'),
     path('products/import-excel/', views.import_products_excel, name='import_products_excel'),
+    path('products/export-csv/', views.export_products_csv, name='export_products_csv'),
+    path('products/export-excel/', views.export_products_excel, name='export_products_excel'),
+    path('products/export-pdf/', views.export_products_pdf, name='export_products_pdf'),
     path('products/template-csv/', views.download_template_csv, name='download_template_csv'),
     path('products/template-excel/', views.download_template_excel, name='download_template_excel'),
     

@@ -218,11 +218,6 @@
             </div>
         </div>
     </div>
-                                
-                                <button type="button" class="btn btn-sm btn-outline-warning edit-order-btn" 
-                                        data-order-id="{{ order.id }}" title="Edit Order">
-                                    <i class="fas fa-edit"></i>
-    </div>
 </div>
 
 <!-- Add Order Modal -->
@@ -280,23 +275,6 @@
             </div>
             <div class="modal-body" id="orderDetailsContent">
                 <!-- Order details will be loaded here -->
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Order Modal -->
-<div class="modal fade" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editOrderModalLabel">
-                    <i class="fas fa-edit"></i> Edit Order
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="editOrderContent">
-                <!-- Edit form will be loaded here -->
             </div>
         </div>
     </div>
@@ -404,23 +382,6 @@ $(document).ready(function() {
             },
             error: function() {
                 showAlert('danger', 'An error occurred while adding the order.');
-            }
-        });
-    });
-
-    // Edit Order
-    $('.edit-order-btn').on('click', function() {
-        const orderId = $(this).data('order-id');
-        
-        $.ajax({
-            url: `{% url "admin_panel:edit_order" 0 %}`.replace('0', orderId),
-            type: 'GET',
-            success: function(response) {
-                $('#editOrderContent').html(response);
-                $('#editOrderModal').modal('show');
-            },
-            error: function() {
-                showAlert('danger', 'An error occurred while loading order data.');
             }
         });
     });
@@ -536,78 +497,6 @@ $(document).ready(function() {
 
 <style>
 /* Enhanced Modal Styling */
-#editOrderModal .modal-xl {
-    max-width: 1200px;
-}
 
-#editOrderModal .modal-content {
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
-#editOrderModal .modal-header {
-    background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
-    border-top-left-radius: 15px;
-    border-top-right-radius: 15px;
-    border-bottom: none;
-}
-
-#editOrderModal .modal-header .btn-close {
-    filter: invert(1);
-}
-
-#editOrderModal .modal-body {
-    padding: 1.5rem;
-    background-color: #f8f9fa;
-}
-
-#editOrderModal .form-select,
-#editOrderModal .form-control {
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-    transition: all 0.3s ease;
-}
-
-#editOrderModal .form-select:focus,
-#editOrderModal .form-control:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-#editOrderModal .card {
-    border-radius: 12px;
-    border: none;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-#editOrderModal .card-header {
-    background-color: #e9ecef;
-    border-bottom: 1px solid #dee2e6;
-    border-radius: 12px 12px 0 0 !important;
-}
-
-#editOrderModal .btn {
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-#editOrderModal .btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* Responsive adjustments */
-@media (max-width: 1200px) {
-    #editOrderModal .modal-xl {
-        max-width: 95%;
-    }
-}
-
-@media (max-width: 768px) {
-    #editOrderModal .row > div {
-        margin-bottom: 1rem;
-    }
-}
 </style>
 {% endblock %}

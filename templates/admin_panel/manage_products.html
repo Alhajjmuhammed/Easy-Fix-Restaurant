@@ -95,7 +95,7 @@
         <!-- Import/Export Dropdown -->
         <div class="dropdown">
             <button class="btn btn-success btn-modern dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                <i class="fas fa-upload me-2"></i>Import Products
+                <i class="fas fa-exchange-alt me-2"></i>Import/Export
             </button>
             <ul class="dropdown-menu">
                 <li><h6 class="dropdown-header">Import from File</h6></li>
@@ -107,6 +107,23 @@
                 <li>
                     <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#importExcelModal">
                         <i class="fas fa-file-excel me-2"></i>Import from Excel
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Export Products</h6></li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'admin_panel:export_products_csv' %}">
+                        <i class="fas fa-file-csv me-2"></i>Export to CSV
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'admin_panel:export_products_excel' %}">
+                        <i class="fas fa-file-excel me-2"></i>Export to Excel
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'admin_panel:export_products_pdf' %}">
+                        <i class="fas fa-file-pdf me-2"></i>Export to PDF
                     </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
@@ -170,6 +187,7 @@
                                     <th style="width: 60px; color: black;">Image</th>
                                     <th style="color: black;">Product Info</th>
                                     <th style="width: 120px; color: black;">Sub Category</th>
+                                    <th style="width: 100px; color: black;">Station</th>
                                     <th style="width: 80px; color: black;">Price</th>
                                     <th style="width: 80px; color: black;">Stock</th>
                                     <th style="width: 80px; color: black;">Status</th>
@@ -204,6 +222,21 @@
                                     </td>
                                     <td>
                                         <small class="text-muted" style="font-size: 0.75rem;">{{ product.sub_category.name }}</small>
+                                    </td>
+                                    <td>
+                                        {% if product.station == 'kitchen' %}
+                                            <span class="badge bg-info" style="font-size: 0.7rem;">
+                                                <i class="fas fa-utensils me-1"></i>Kitchen
+                                            </span>
+                                        {% elif product.station == 'bar' %}
+                                            <span class="badge bg-primary" style="font-size: 0.7rem;">
+                                                <i class="fas fa-cocktail me-1"></i>Bar
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" style="font-size: 0.7rem;">
+                                                <i class="fas fa-question me-1"></i>N/A
+                                            </span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <span class="fw-bold text-success" style="font-size: 0.85rem;">${{ product.price|floatformat:2 }}</span>
@@ -388,6 +421,14 @@
                                         <div class="col-md-4">
                                             <label for="productPrepTime" class="form-label">Prep Time (min)</label>
                                             <input type="number" min="1" class="form-control" id="productPrepTime" name="preparation_time" value="15">
+                                        </div>
+                                        <div class="col-md-12">
+                                            <label for="productStation" class="form-label">Station *</label>
+                                            <select class="form-select" id="productStation" name="station" required>
+                                                <option value="kitchen">🍴 Kitchen</option>
+                                                <option value="bar">🍸 Bar</option>
+                                            </select>
+                                            <div class="form-text">Assign this product to Kitchen or Bar station</div>
                                         </div>
                                         <div class="col-md-12">
                                             <div class="form-check">
@@ -997,8 +1038,10 @@ function updateCategoryTabCounters() {
                         <ul class="mb-0 mt-2">
                             <li>File must be in CSV format (.csv)</li>
                             <li>Required columns: name, price, main_category</li>
-                            <li>Optional columns: description, sub_category, available_in_stock, is_available, preparation_time</li>
+                            <li>Optional columns: description, sub_category, available_in_stock, is_available, preparation_time, station</li>
+                            <li>Station field: "kitchen" or "bar" (defaults to "kitchen" if not specified)</li>
                             <li>Main category must already exist in your system</li>
+                            <li><strong>Update Behavior:</strong> Existing products will be updated, new products will be created</li>
                         </ul>
                     </div>
                     
@@ -1045,8 +1088,10 @@ function updateCategoryTabCounters() {
                             <li>File must be in Excel format (.xlsx or .xls)</li>
                             <li>Uses first sheet or sheet named "Products"</li>
                             <li>Required columns: name, price, main_category</li>
-                            <li>Optional columns: description, sub_category, available_in_stock, is_available, preparation_time</li>
+                            <li>Optional columns: description, sub_category, available_in_stock, is_available, preparation_time, station</li>
+                            <li>Station field: "kitchen" or "bar" (defaults to "kitchen" if not specified)</li>
                             <li>Main category must already exist in your system</li>
+                            <li><strong>Update Behavior:</strong> Existing products will be updated, new products will be created</li>
                         </ul>
                     </div>
                     

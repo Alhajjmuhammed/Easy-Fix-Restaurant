@@ -11,11 +11,6 @@ import os
 from accounts.views import qr_code_access
 
 @require_GET
-def clear_pwa_cache(request):
-    """Development tool to clear PWA cache"""
-    return render(request, 'clear-pwa-cache.html')
-
-@require_GET
 def service_worker(request):
     """Serve the service worker with proper headers"""
     service_worker_path = os.path.join(settings.BASE_DIR, 'service-worker.js')
@@ -34,7 +29,6 @@ def service_worker(request):
 urlpatterns = [
     path('', RedirectView.as_view(url='/accounts/login/', permanent=False), name='root'),
     path('service-worker.js', service_worker, name='service_worker'),
-    path('clear-pwa-cache/', clear_pwa_cache, name='clear_pwa_cache'),  # Development tool
     # QR Code access - short URL for restaurant access
     path('r/<str:qr_code>/', qr_code_access, name='qr_code_access'),
     path('admin/', admin.site.urls),
