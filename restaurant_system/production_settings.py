@@ -149,9 +149,9 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow iframes from same origin
 
-# Cross-Origin Policies
-CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
-CROSS_ORIGIN_EMBEDDER_POLICY = 'require-corp'
+# Cross-Origin Policies - Relaxed to allow CDN resources
+CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+CROSS_ORIGIN_EMBEDDER_POLICY = 'unsafe-none'  # Allow external CDN resources
 
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
@@ -227,9 +227,9 @@ class SecurityHeadersMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         
-        # Add security headers
-        response['Cross-Origin-Opener-Policy'] = 'same-origin'
-        response['Cross-Origin-Embedder-Policy'] = 'require-corp'
+        # Add security headers - Allow CDN resources
+        response['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+        response['Cross-Origin-Embedder-Policy'] = 'unsafe-none'
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
         
