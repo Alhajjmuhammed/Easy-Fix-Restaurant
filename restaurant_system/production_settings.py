@@ -156,6 +156,9 @@ CROSS_ORIGIN_EMBEDDER_POLICY = 'require-corp'
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
 CSRF_COOKIE_SECURE = True    # Required for HTTPS
+CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cookies in same-site context
+CSRF_COOKIE_NAME = 'csrftoken'  # Default name
+CSRF_USE_SESSIONS = False  # Store CSRF token in cookie, not session
 CSRF_TRUSTED_ORIGINS = [
     'https://easyfixsoft.com',
     'https://www.easyfixsoft.com',
