@@ -44,6 +44,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',  # Enabled for production
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'subscription_middleware.SubscriptionAccessMiddleware',  # SaaS subscription control
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
