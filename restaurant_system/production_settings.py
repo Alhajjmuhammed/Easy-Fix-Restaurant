@@ -155,8 +155,12 @@ CROSS_ORIGIN_EMBEDDER_POLICY = 'require-corp'
 
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
-CSRF_COOKIE_SECURE = False    # Set to True when using HTTPS
+CSRF_COOKIE_SECURE = True    # Required for HTTPS
 CSRF_TRUSTED_ORIGINS = [
+    'https://easyfixsoft.com',
+    'https://www.easyfixsoft.com',
+    'http://easyfixsoft.com',
+    'http://www.easyfixsoft.com',
     'http://24.199.116.165',
     'https://24.199.116.165',
     'http://localhost:8000',
@@ -164,15 +168,13 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # Session Configuration
-SESSION_COOKIE_SECURE = False  # Set to True when using HTTPS
+SESSION_COOKIE_SECURE = True  # Required for HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-# HTTPS Settings (uncomment when SSL is configured)
-# SECURE_SSL_REDIRECT = True
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
-# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# HTTPS Settings - SSL is configured with nginx reverse proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# SECURE_SSL_REDIRECT = True  # Let nginx handle SSL redirect
 
 # Logging Configuration
 LOGGING = {
