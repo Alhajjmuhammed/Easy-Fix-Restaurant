@@ -49,37 +49,37 @@ class UserRegistrationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         from .models import Role
         self.fields['role'].queryset = Role.objects.all()
-        widgets = {
-            'username': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Choose a username',
-                'required': True
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter your email',
-                'required': True
-            }),
-            'first_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter your first name',
-                'required': True
-            }),
-            'last_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter your last name',
-                'required': True
-            }),
-            'phone_number': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter your phone number'
-            }),
-            'address': forms.Textarea(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter your address',
-                'rows': 3
-            }),
-        }
+        
+        # Apply Bootstrap classes to all form fields
+        self.fields['username'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Choose a username',
+            'required': True
+        })
+        self.fields['email'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Enter your email',
+            'required': True
+        })
+        self.fields['first_name'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Enter your first name',
+            'required': True
+        })
+        self.fields['last_name'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Enter your last name',
+            'required': True
+        })
+        self.fields['phone_number'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Enter your phone number'
+        })
+        self.fields['address'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Enter your address',
+            'rows': 3
+        })
     
     def clean(self):
         cleaned_data = super().clean()
